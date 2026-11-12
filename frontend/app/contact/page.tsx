@@ -9,11 +9,10 @@ import { useSearchParams } from "next/navigation";
 import { PLANS, planLabel, type PlanName } from "@/lib/plans";
 import { AuthShell, inputClass, primaryBtn } from "@/components/shared/AuthShell";
 
-const SIZES = ["1-10", "11-25", "25-50", "50-200", "200+"];
 
 function ContactForm() {
   const asked = useSearchParams().get("plan");
-  const [f, setF] = useState({ companyName: "", contactName: "", workEmail: "", phone: "", teamSize: "25-50", planInterest: (PLANS.some((p) => p.name === asked) ? asked : "Growth") as PlanName, message: "" });
+  const [f, setF] = useState({ companyName: "", contactName: "", workEmail: "", phone: "", planInterest: (PLANS.some((p) => p.name === asked) ? asked : "Growth") as PlanName, message: "" });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -22,7 +21,8 @@ function ContactForm() {
     e.preventDefault();
     setBusy(true);
     try {
-      await RostraApi.submitInquiry({ ...f, message: f.message.trim() || `Interested in the ${f.planInterest} plan for ${f.teamSize} people.` });
+      const plan = PLANS.find((p) => p.name === f.planInterest)!;
+      await RostraApi.submitInquiry({ ...f, teamSize: plan.cap, message: f.message.trim() || `Interested in the ${f.planInterest} plan.` });
       setDone(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send your request. Please try again.");
@@ -76,10 +76,7 @@ function ContactForm() {
             {field("workEmail", "Work email", <input id="workEmail" type="email" required autoComplete="email" value={f.workEmail} onChange={set("workEmail")} className={inputClass} />)}
             {field("phone", "Phone (optional)", <input id="phone" type="tel" autoComplete="tel" maxLength={50} value={f.phone} onChange={set("phone")} className={inputClass} />)}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {field("teamSize", "Team size", <select id="teamSize" value={f.teamSize} onChange={set("teamSize")} className={inputClass}>{SIZES.map((s) => <option key={s}>{s}</option>)}</select>)}
-            {field("planInterest", "Plan", <select id="planInterest" value={f.planInterest} onChange={set("planInterest")} className={inputClass}>{PLANS.map((p) => <option key={p.name} value={p.name}>{planLabel(p)}</option>)}</select>)}
-          </div>
+          {field("planInterest", "Plan", <select id="planInterest" value={f.planInterest} onChange={set("planInterest")} className={inputClass}>{PLANS.map((p) => <option key={p.name} value={p.name}>{planLabel(p)}</option>)}</select>)}
           {field("message", "Anything we should know? (optional)", <textarea id="message" rows={3} maxLength={2000} value={f.message} onChange={set("message")} className={inputClass} />)}
           <button type="submit" disabled={busy} className={primaryBtn}>{busy ? "Sending…" : "Request my workspace"}</button>
         </form>
