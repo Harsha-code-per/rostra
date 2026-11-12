@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,8 @@ async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
 
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
 
 _docs = settings.API_DOCS_ENABLED or not settings.is_production
 

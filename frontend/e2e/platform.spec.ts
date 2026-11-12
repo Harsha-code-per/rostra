@@ -30,3 +30,9 @@ test("non-platform users are turned away from the console", async ({ page }) => 
   await signIn(page, { email: "alex.rivera@demo.example.com", password: "password123" }, "/platform-admin/login");
   await expect(page.getByText(/restricted to Rostra platform staff/)).toBeVisible();
 });
+
+test("the platform owner cannot use the customer sign-in", async ({ page }) => {
+  await signIn(page, OWNER);
+  await expect(page.getByText(/Platform staff sign in at/)).toBeVisible();
+  await expect(page).toHaveURL(/\/login/);
+});
