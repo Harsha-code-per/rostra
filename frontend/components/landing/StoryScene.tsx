@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { makeBadges, makeCalendar, makeClock, makePayslip, makeShield, type Piece } from "./sceneObjects";
+import { makeBadges, makeCalendar, makeClock, makePaperTextures, makePayslip, makeShield, type Piece } from "./sceneObjects";
 
 /**
  * "One ordinary Monday": paper cards scattered while HR is drowning, which then gather into five
@@ -13,7 +13,6 @@ import { makeBadges, makeCalendar, makeClock, makePayslip, makeShield, type Piec
  */
 
 const PAPER = ["#ffffff", "#eceeff", "#d9dcff"].map((c) => new THREE.Color(c));
-const SAFFRON = new THREE.Color("#ff6b3d");
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const ease = (x: number) => x * x * (3 - 2 * x);
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -48,23 +47,29 @@ export default function StoryScene({ count }: { count: number }) {
     sun.position.set(-5, 7, 9);
     scene.add(sun);
 
-    // Paper swarm for the "mess" act.
-    const N = count;
-    const geo = new RoundedBoxGeometry(1, 1.3, 0.05, 2, 0.06);
-    const swarm = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.85 }), N);
-    swarm.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    const home = Array.from({ length: N }, () => new THREE.Vector3(rnd(-9, 9), rnd(-5, 5), rnd(-7, 3)));
-    const spin = Array.from({ length: N }, () => new THREE.Euler(rnd(-1.4, 1.4), rnd(-1.4, 1.4), rnd(-3, 3)));
-    const size = Float32Array.from({ length: N }, () => rnd(0.8, 1.35));
+    // The "mess" act: spreadsheets, forms and sticky notes in the air.
+    const KINDS = 3;
+    const per = Math.ceil(count / KINDS);
+    const N = per * KINDS;
+    const geo = new RoundedBoxGeometry(1, 1.3, 0.04, 2, 0.05);
+    const papers = makePaperTextures(Math.min(4, renderer.capabilities.getMaxAnisotropy()));
+    const meshes = papers.map((map, k) => {
+      const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ map, roughness: 0.8 }), per);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      for (let i = 0; i < per; i++) m.setColorAt(i, PAPER[(i + k) % 2]);
+      scene.add(m);
+      return m;
+    });
+    const home = Array.from({ length: N }, () => new THREE.Vector3(rnd(-8.5, 8.5), rnd(-4.6, 4.6), rnd(-9, -1)));
+    const spin = Array.from({ length: N }, () => new THREE.Euler(rnd(-0.9, 0.9), rnd(-0.9, 0.9), rnd(-2.6, 2.6)));
+    const size = Float32Array.from({ length: N }, () => rnd(0.55, 0.95));
     const phase = Float32Array.from({ length: N }, () => Math.random() * Math.PI * 2);
-    for (let i = 0; i < N; i++) swarm.setColorAt(i, Math.random() < 0.06 ? SAFFRON : PAPER[Math.floor(Math.random() * 3)]);
-    scene.add(swarm);
 
     // The props. Built once the page fonts are ready, because their text is drawn to textures.
     const stage = new THREE.Group();
     scene.add(stage);
     let pieces: Piece[] = [];
-    const disposables: { dispose(): void }[] = [geo, swarm.material as THREE.Material, envRT.texture];
+    const disposables: { dispose(): void }[] = [geo, envRT.texture, ...papers, ...meshes.map((m) => m.material as THREE.Material)];
     const css = getComputedStyle(document.documentElement);
     const fonts = { display: css.getPropertyValue("--font-display").trim() || "system-ui", body: css.getPropertyValue("--font-sans-body").trim() || "system-ui" };
     Promise.all([
@@ -151,35 +156,38 @@ export default function StoryScene({ count }: { count: number }) {
       stage.position.set(wide ? aspect * 10.8 * 0.19 : 0, wide ? -0.45 : 1.5, 0);
       stage.scale.setScalar((wide ? 0.98 : 0.66) * fit);
 
+      // Each prop holds still for the middle of its section, then hands over quickly: it rises in
+      // from below as you scroll down and lifts away upward, so two are never on screen together.
+      const win = (d: number) => ease(clamp01((0.58 - Math.abs(d)) / 0.33));
       pieces.forEach((p, k) => {
         const d = act - (k + 1);
-        const w = ease(clamp01(1 - Math.abs(d) * 1.7));
+        const w = win(d);
         p.root.visible = w > 0.004;
         if (!p.root.visible) return;
-        p.root.scale.setScalar((0.35 + 0.65 * w) * (k === 1 ? 1.3 : 1));
-        p.root.position.set(d * 1.2, Math.abs(d) * -0.5, -Math.abs(d) * 2);
-        const bank = k === 4 ? 0 : -d * 0.9;
-        p.root.rotation.set(0, bank, 0);
+        p.root.scale.setScalar(w);
+        p.root.position.set(0, d * 2.6, 0);
+        p.root.rotation.set(0, d * 1.5, 0);
         p.tick(time, reduced);
       });
 
-      // Paper swarm: scattered at the top, drawn into the clock as the first act arrives.
-      const wSwarm = clamp01(1 - act);
-      swarm.visible = wSwarm > 0.004;
-      if (swarm.visible) {
-        const u = ease(wSwarm);
-        for (let i = 0; i < N; i++) {
-          dummy.position.copy(home[i]).multiplyScalar(0.2 + 0.8 * u);
-          dummy.position.x += Math.sin(time * 0.5 + phase[i]) * 0.5 * u + (wide ? stage.position.x * (1 - u) : 0);
-          dummy.position.y += Math.cos(time * 0.43 + phase[i] * 1.3) * 0.5 * u;
-          eul.set(spin[i].x * u + Math.sin(time * 0.3 + phase[i]) * 0.3 * u, spin[i].y * u, spin[i].z * u);
+      // Mess: drifts apart at the top, then is drawn into the stage and gone before the clock settles.
+      const u = act <= 0.25 ? 1 : ease(clamp01((0.6 - act) / 0.35));
+      meshes.forEach((m, k) => {
+        m.visible = u > 0.004;
+        if (!m.visible) return;
+        for (let i = 0; i < per; i++) {
+          const j = k * per + i;
+          dummy.position.copy(home[j]).multiplyScalar(0.15 + 0.85 * u);
+          dummy.position.x += Math.sin(time * 0.5 + phase[j]) * 0.45 * u + (wide ? stage.position.x * (1 - u) : 0);
+          dummy.position.y += Math.cos(time * 0.43 + phase[j] * 1.3) * 0.45 * u + stage.position.y * (1 - u);
+          eul.set(spin[j].x * u + Math.sin(time * 0.3 + phase[j]) * 0.25 * u, spin[j].y * u, spin[j].z * u);
           dummy.quaternion.setFromEuler(eul);
-          dummy.scale.setScalar(size[i] * u);
+          dummy.scale.setScalar(size[j] * u);
           dummy.updateMatrix();
-          swarm.setMatrixAt(i, dummy.matrix);
+          m.setMatrixAt(i, dummy.matrix);
         }
-        swarm.instanceMatrix.needsUpdate = true;
-      }
+        m.instanceMatrix.needsUpdate = true;
+      });
 
       camera.position.x += (pointer.x * 0.9 - camera.position.x) * 0.04;
       camera.position.y += (-pointer.y * 0.55 - camera.position.y) * 0.04;
@@ -212,7 +220,7 @@ export default function StoryScene({ count }: { count: number }) {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pointermove", onPointer);
       disposables.forEach((d) => d.dispose());
-      swarm.dispose();
+      meshes.forEach((m) => m.dispose());
       pmrem.dispose();
       renderer.dispose();
       renderer.domElement.remove();

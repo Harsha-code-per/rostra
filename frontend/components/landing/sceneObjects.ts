@@ -429,3 +429,36 @@ export function makeShield(): Piece {
     },
   };
 }
+
+// ---------------------------------------------------------------- the mess: loose paperwork
+
+/** Three kinds of paper HR drowns in: a spreadsheet, a form, a sticky note. */
+export function makePaperTextures(aniso: number): THREE.CanvasTexture[] {
+  const W = 256, H = 332;
+  const sheet = texture(W, H, aniso, (c) => {
+    c.fillStyle = "#ffffff"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "#dfe1fb"; c.fillRect(0, 0, W, 34);
+    c.strokeStyle = "#c9ccf0"; c.lineWidth = 2;
+    for (let r = 1; r <= 9; r++) { c.beginPath(); c.moveTo(0, r * 34); c.lineTo(W, r * 34); c.stroke(); }
+    for (let k = 1; k <= 3; k++) { c.beginPath(); c.moveTo(k * 64, 0); c.lineTo(k * 64, H); c.stroke(); }
+    const fills = ["#3b3bf2", "#ff6b3d", "#9aa0ff"];
+    for (let r = 1; r < 10; r++) for (let k = 0; k < 4; k++) if ((r * 7 + k * 3) % 5 < 2) { c.fillStyle = fills[(r + k) % 3]; c.globalAlpha = 0.85; c.fillRect(k * 64 + 8, r * 34 + 12, 28 + ((r * k) % 3) * 8, 10); c.globalAlpha = 1; }
+  });
+  const form = texture(W, H, aniso, (c) => {
+    c.fillStyle = "#ffffff"; c.fillRect(0, 0, W, H);
+    c.fillStyle = C.ink; c.fillRect(24, 28, 110, 14);
+    c.fillStyle = "#c9ccf0";
+    for (let r = 0; r < 7; r++) c.fillRect(24, 72 + r * 28, r % 3 === 2 ? 130 : 208, 9);
+    c.strokeStyle = C.ultra; c.lineWidth = 5; c.lineCap = "round"; c.lineJoin = "round";
+    c.strokeRect(24, 276, 22, 22);
+    c.beginPath(); c.moveTo(28, 288); c.lineTo(34, 294); c.lineTo(44, 280); c.stroke();
+    c.fillStyle = "#dfe1fb"; c.fillRect(64, 282, 100, 10);
+  });
+  const note = texture(W, H, aniso, (c) => {
+    c.fillStyle = "#ff8a63"; c.fillRect(0, 0, W, H);
+    c.fillStyle = "rgba(255,255,255,0.25)"; c.fillRect(0, 0, W, 30);
+    c.strokeStyle = "#10113a"; c.lineWidth = 7; c.lineCap = "round";
+    for (let r = 0; r < 4; r++) { c.beginPath(); c.moveTo(28, 86 + r * 44); c.bezierCurveTo(70, 70 + r * 44, 120, 104 + r * 44, 150 + (r % 2) * 50, 86 + r * 44); c.stroke(); }
+  });
+  return [sheet, form, note];
+}
