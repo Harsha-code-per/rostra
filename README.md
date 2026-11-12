@@ -17,10 +17,6 @@
   <img alt="License" src="https://img.shields.io/badge/license-proprietary-ff6b3d" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/landing.png" alt="Rostra landing page" width="920" />
-</p>
-
 ---
 
 ## Why Rostra
@@ -41,23 +37,6 @@ Rostra puts all three on one record. A check-in, an approved leave day and a pay
 | **HR and admins** | Company attendance board for any date with manual corrections for missed check-ins, leave approvals (a request can be decided exactly once), employee directory and onboarding with one-time passwords, salary structure editor, payroll register with CSV export, analytics |
 | **Platform owner** | Create customer workspaces with a plan and employee limit, suspend or reactivate a workspace (everyone in it is locked out immediately), triage website inquiries |
 
-## Screenshots
-
-<table>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Admin overview" /><br/><sub><b>Overview.</b> Live headcount, attendance and the leave queue.</sub></td>
-    <td width="50%"><img src="docs/screenshots/payroll.png" alt="Payroll register" /><br/><sub><b>Payroll.</b> Per-month register from attendance and approved leave.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/employees.png" alt="Employee directory" /><br/><sub><b>Employees.</b> Search, onboard, edit profile and salary.</sub></td>
-    <td width="50%"><img src="docs/screenshots/leave.png" alt="Leave approvals" /><br/><sub><b>Leave.</b> Review with balances attached.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/landing-3d.png" alt="Landing page 3D scene" /><br/><sub><b>Landing.</b> A scroll-driven 3D scene, lazy-loaded and optional.</sub></td>
-    <td width="50%" align="center"><img src="docs/screenshots/mobile-landing.png" alt="Mobile landing page" width="200" /><br/><sub><b>Mobile.</b> Fully responsive, no horizontal scroll.</sub></td>
-  </tr>
-</table>
-
 ## Architecture
 
 ```mermaid
@@ -65,7 +44,7 @@ flowchart LR
     U[Browser] -->|HTTPS| W[Next.js 16 web app]
     W -->|REST, JWT| A[FastAPI API]
     A -->|async SQLAlchemy| D[(PostgreSQL)]
-    A -.->|optional| E[Resend email]
+    A -.->|optional| E[Brevo SMTP]
     P[Platform owner] --> W
 ```
 
@@ -149,7 +128,8 @@ Backend variables (see [`backend/.env.example`](backend/.env.example)):
 | `JWT_SECRET_KEY` | 32+ random characters; required in production |
 | `CORS_ORIGINS`, `APP_BASE_URL` | The web app origin |
 | `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Creates the first platform owner once, if none exists |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Optional email delivery |
+| `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Optional email delivery over SMTP (Brevo relay by default) for password resets, invitations and new-request alerts |
+| `INQUIRY_NOTIFY_TO` | Who is emailed when a workspace is requested |
 
 Frontend: `NEXT_PUBLIC_API_URL` (including `/api/v1`) and `NEXT_PUBLIC_SITE_URL`.
 
@@ -201,7 +181,7 @@ Status of the product, not a promise of dates.
 
 **Next**
 - Billing and plans (the data model already carries a plan and an employee limit)
-- Verified sending domain for email, so invitations and resets can be delivered
+- Authenticated sending domain (SPF and DKIM), so mail stops landing in spam
 - State-wise professional tax, TDS and Form 16 support
 - Audit log for sensitive changes (wage, role, status)
 - Shift schedules, holidays and approval chains
@@ -217,7 +197,7 @@ backend/
 frontend/
   app             pages (App Router)      lib/api.ts     the only module that calls the API
   components      UI and landing scene    e2e            Playwright + axe tests
-docs/             deployment guide, screenshots
+docs/             deployment guide
 .github/          CI workflow
 ```
 

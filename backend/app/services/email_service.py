@@ -1,170 +1,140 @@
+"""Transactional email over SMTP (Brevo's relay by default; any SMTP server works)."""
 import logging
-from typing import Dict, Any, Optional
-import resend
+import re
+import smtplib
+import ssl
+from concurrent.futures import ThreadPoolExecutor
+from email.message import EmailMessage
+from html import escape
+from typing import Any, Callable, Dict, Optional
 
 from app.config import settings
 
-import re
-
 logger = logging.getLogger("rostra.email")
 
+_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="mail")
 
-def _sanitize_msg(msg: Any) -> str:
-    s = str(msg)
-    s = re.sub(r"Bearer\s+[^\s]+", "Bearer ***REDACTED***", s, flags=re.IGNORECASE)
-    s = re.sub(r"re_[a-zA-Z0-9_]+", "re_***REDACTED***", s)
-    return s
+
+def _one_line(value: Any) -> str:
+    """Header-safe text: no line breaks, so user input cannot add headers."""
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def _layout(title: str, body: str, button: Optional[tuple] = None) -> str:
+    cta = (
+        f'<p style="text-align:center;margin:28px 0"><a href="{escape(button[1], quote=True)}" '
+        'style="display:inline-block;background:#10113a;color:#ffffff;text-decoration:none;'
+        f'padding:13px 26px;border-radius:999px;font-weight:600;font-size:14px">{escape(button[0])}</a></p>'
+        if button
+        else ""
+    )
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:24px;background:#f4f5ff;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#10113a">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dfe1fb;border-radius:20px;overflow:hidden">
+    <div style="background:#3b3bf2;padding:26px 28px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.4px">Rostra</div>
+    <div style="padding:28px;font-size:15px;line-height:1.6">
+      <h1 style="margin:0 0 14px;font-size:20px;letter-spacing:-0.3px">{escape(title)}</h1>
+      {body}{cta}
+    </div>
+    <div style="padding:16px 28px;background:#f4f5ff;color:#5b5c8a;font-size:12px">Rostra. Attendance, leave and payroll in one workspace.</div>
+  </div>
+</body></html>"""
 
 
 class EmailService:
-    def __init__(self, api_key: Optional[str] = None, sender_email: Optional[str] = None):
-        self.api_key = settings.RESEND_API_KEY if api_key is None else api_key
-        self.sender = settings.EMAIL_FROM if sender_email is None else sender_email
-        if self.api_key:
-            resend.api_key = self.api_key
-
-    def send_invitation_email(
+    def __init__(
         self,
-        to_email: str,
-        recipient_name: str,
-        company_name: str,
-        role: str,
-        activation_link: str,
-    ) -> Dict[str, Any]:
-        """
-        Sends a secure onboarding invitation email via Resend with a secure one-time activation link.
-        """
-        subject = f"Welcome to {company_name} on Rostra — Activate Your Account"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }}
-            .container {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }}
-            .header {{ background: #0891b2; padding: 32px 24px; text-align: center; color: #ffffff; }}
-            .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }}
-            .content {{ padding: 32px 24px; }}
-            .greeting {{ font-size: 16px; font-weight: 600; margin-bottom: 12px; }}
-            .message {{ font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }}
-            .badge {{ display: inline-block; padding: 4px 12px; background: #ecfeff; border: 1px solid #cffafe; border-radius: 9999px; color: #0891b2; font-weight: 600; font-size: 12px; margin-bottom: 16px; }}
-            .cta-container {{ text-align: center; margin: 32px 0; }}
-            .cta-button {{ display: inline-block; background: #0891b2; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(8,145,178,0.2); }}
-            .notice {{ font-size: 12px; color: #94a3b8; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px; }}
-            .footer {{ background: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Rostra</h1>
-            </div>
-            <div class="content">
-              <div class="badge">Role: {role}</div>
-              <div class="greeting">Hello {recipient_name},</div>
-              <p class="message">
-                You have been invited to join <strong>{company_name}</strong> on Rostra.
-                Your account is ready for activation. Please click the button below to set your permanent password and access your workspace.
-              </p>
-              <div class="cta-container">
-                <a href="{activation_link}" class="cta-button" target="_blank">Activate Account & Set Password</a>
-              </div>
-              <div class="notice">
-                <strong>Security Notice:</strong> This invitation link is personalized for your account. If you did not expect this invitation, please contact your organization administrator.
-              </div>
-            </div>
-            <div class="footer">
-              &copy; 2026 Rostra Demo Co. &bull; Enterprise HRMS Platform
-            </div>
-          </div>
-        </body>
-        </html>
-        """
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        sender: Optional[str] = None,
+        sender_name: Optional[str] = None,
+    ):
+        self.host = settings.SMTP_HOST if host is None else host
+        self.port = settings.SMTP_PORT if port is None else port
+        self.user = settings.SMTP_USER if user is None else user
+        self.password = settings.SMTP_PASSWORD if password is None else password
+        self.sender = settings.EMAIL_FROM if sender is None else sender
+        self.sender_name = settings.EMAIL_FROM_NAME if sender_name is None else sender_name
 
-        if not self.api_key:
-            logger.info("Resend API key not configured; simulated invitation email sent to %s", to_email)
-            return {"status": "simulated", "to": to_email, "subject": subject}
+    @property
+    def configured(self) -> bool:
+        return bool(self.user and self.password and self.sender)
 
+    def _redact(self, msg: Any) -> str:
+        s = str(msg)
+        return s.replace(self.password, "***REDACTED***") if self.password else s
+
+    def _send(self, to: str, subject: str, html: str, reply_to: Optional[str] = None) -> Dict[str, Any]:
+        subject = _one_line(subject)
+        if not self.configured:
+            logger.info("SMTP not configured; simulated email to %s (%s)", to, subject)
+            return {"status": "simulated", "to": to, "subject": subject}
         try:
-            params: resend.Emails.SendParams = {
-                "from": self.sender,
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-            }
-            res = resend.Emails.send(params)
-            logger.info("Invitation email dispatched via Resend to %s (id: %s)", to_email, res.get("id"))
-            return res
+            msg = EmailMessage()
+            msg["From"] = f"{_one_line(self.sender_name)} <{self.sender}>"
+            msg["To"] = to
+            msg["Subject"] = subject
+            if reply_to:
+                msg["Reply-To"] = reply_to
+            msg.set_content("Open this email in an HTML-capable mail app.")
+            msg.add_alternative(html, subtype="html")
+            with smtplib.SMTP(self.host, self.port, timeout=15) as smtp:
+                smtp.starttls(context=ssl.create_default_context())
+                smtp.login(self.user, self.password)
+                smtp.send_message(msg)
+            logger.info("Email sent to %s (%s)", to, subject)
+            return {"status": "sent", "to": to, "subject": subject}
         except Exception as exc:
-            sanitized_err = _sanitize_msg(exc)
-            logger.error("Failed to send invitation email via Resend to %s: %s", to_email, sanitized_err)
-            return {"status": "failed", "error": sanitized_err}
+            err = self._redact(exc)
+            logger.error("Failed to send email to %s: %s", to, err)
+            return {"status": "failed", "error": err}
 
-    def send_password_reset_email(
-        self,
-        to_email: str,
-        recipient_name: str,
-        reset_link: str,
+    def send_in_background(self, fn: Callable[..., Any], **kwargs: Any) -> None:
+        """Run one of the send_* methods without making the request wait for the mail server.
+
+        With no SMTP configured there is nothing slow to wait for, so it runs inline (also keeps tests deterministic).
+        """
+        if self.configured:
+            _pool.submit(fn, **kwargs)
+        else:
+            fn(**kwargs)
+
+    def send_invitation_email(self, to_email: str, recipient_name: str, company_name: str, role: str, activation_link: str) -> Dict[str, Any]:
+        body = (
+            f"<p>Hello {escape(recipient_name)},</p>"
+            f"<p>You have been added to <strong>{escape(company_name)}</strong> on Rostra as <strong>{escape(role)}</strong>. "
+            "Sign in with the temporary password your administrator gave you, then choose your own.</p>"
+            '<p style="font-size:12px;color:#5b5c8a">If you did not expect this, contact your organization administrator.</p>'
+        )
+        return self._send(
+            to_email,
+            f"Welcome to {company_name} on Rostra",
+            _layout("You are in", body, ("Sign in to Rostra", activation_link)),
+        )
+
+    def send_password_reset_email(self, to_email: str, recipient_name: str, reset_link: str) -> Dict[str, Any]:
+        body = (
+            f"<p>Hello {escape(recipient_name)},</p>"
+            f"<p>We received a request to reset your Rostra password. The link works once and expires in {settings.RESET_TOKEN_EXPIRE_MINUTES} minutes.</p>"
+            '<p style="font-size:12px;color:#5b5c8a">If you did not ask for this, ignore this email. Your password stays the same.</p>'
+        )
+        return self._send(to_email, "Reset your Rostra password", _layout("Reset your password", body, ("Choose a new password", reset_link)))
+
+    def send_inquiry_notification(
+        self, to_email: str, company: str, contact: str, email: str, phone: Optional[str], team_size: str, plan: str, message: Optional[str]
     ) -> Dict[str, Any]:
-        """
-        Sends a secure password reset email via Resend.
-        """
-        subject = "Reset Your Password — Rostra"
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }}
-            .container {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; }}
-            .header {{ background: #0891b2; padding: 28px 24px; text-align: center; color: #ffffff; }}
-            .header h1 {{ margin: 0; font-size: 22px; font-weight: 700; }}
-            .content {{ padding: 32px 24px; }}
-            .cta-container {{ text-align: center; margin: 28px 0; }}
-            .cta-button {{ display: inline-block; background: #0891b2; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; font-size: 14px; }}
-            .footer {{ background: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Rostra</h1>
-            </div>
-            <div class="content">
-              <p>Hello {recipient_name},</p>
-              <p>We received a request to reset your password for Rostra. Click the button below to choose a new password:</p>
-              <div class="cta-container">
-                <a href="{reset_link}" class="cta-button" target="_blank">Reset Password</a>
-              </div>
-              <p style="font-size: 12px; color: #94a3b8;">If you did not request a password reset, you can safely ignore this email.</p>
-            </div>
-            <div class="footer">
-              &copy; 2026 Rostra Demo Co.
-            </div>
-          </div>
-        </body>
-        </html>
-        """
-
-        if not self.api_key:
-            logger.info("Resend API key not configured; simulated password reset email sent to %s", to_email)
-            return {"status": "simulated", "to": to_email, "subject": subject}
-
-        try:
-            params: resend.Emails.SendParams = {
-                "from": self.sender,
-                "to": [to_email],
-                "subject": subject,
-                "html": html_content,
-            }
-            res = resend.Emails.send(params)
-            return res
-        except Exception as exc:
-            sanitized_err = _sanitize_msg(exc)
-            logger.error("Failed to send password reset email via Resend to %s: %s", to_email, sanitized_err)
-            return {"status": "failed", "error": sanitized_err}
+        rows = [("Company", company), ("Contact", contact), ("Email", email), ("Phone", phone or "-"), ("Team size", team_size), ("Plan", plan)]
+        table = "".join(
+            f'<tr><td style="padding:6px 16px 6px 0;color:#5b5c8a">{escape(k)}</td><td style="padding:6px 0"><strong>{escape(_one_line(v))}</strong></td></tr>'
+            for k, v in rows
+        )
+        note = f'<p style="white-space:pre-wrap;background:#f4f5ff;border-radius:12px;padding:14px">{escape(message)}</p>' if message else ""
+        html = _layout("New workspace request", f'<table style="border-collapse:collapse;font-size:14px">{table}</table>{note}'
+                       '<p style="font-size:12px;color:#5b5c8a">Reply to this email to answer them directly.</p>')
+        return self._send(to_email, f"New workspace request: {company}", html, reply_to=email)
 
 
 email_service = EmailService()

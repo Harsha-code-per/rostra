@@ -120,9 +120,10 @@ async def provision_new_tenant(
     company.owner_id = admin_profile_id
     await db.commit()
 
-    # 8. Dispatch invitation email via Resend
+    # 8. Dispatch invitation email
     activation_link = f"{settings.APP_BASE_URL}/force-password-reset"
-    email_service.send_invitation_email(
+    email_service.send_in_background(
+        email_service.send_invitation_email,
         to_email=data.admin_email.lower().strip(),
         recipient_name=data.admin_name,
         company_name=data.name,
@@ -243,6 +244,19 @@ async def create_inquiry(db: AsyncSession, data: InquiryCreate) -> InquiryOut:
     db.add(inquiry)
     await db.commit()
     await db.refresh(inquiry)
+
+    if settings.INQUIRY_NOTIFY_TO:
+        email_service.send_in_background(
+            email_service.send_inquiry_notification,
+            to_email=settings.INQUIRY_NOTIFY_TO,
+            company=inquiry.company_name,
+            contact=inquiry.contact_name,
+            email=inquiry.work_email,
+            phone=inquiry.phone,
+            team_size=inquiry.team_size,
+            plan=inquiry.plan_interest,
+            message=inquiry.message,
+        )
 
     return InquiryOut(
         id=inquiry.id,

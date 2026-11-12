@@ -1,93 +1,70 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
 from app.services.email_service import EmailService
 
+CFG = dict(host="smtp.test", port=587, user="login", password="s3cret-key", sender="hello@rostra.test")
 
-def test_email_service_simulated_mode_when_no_api_key():
-    service = EmailService(api_key="", sender_email="test@resend.dev")
-    res = service.send_invitation_email(
-        to_email="newuser@example.com",
-        recipient_name="John Doe",
-        company_name="Acme Corp",
+
+def _invite(service, **kw):
+    return service.send_invitation_email(
+        to_email=kw.get("to", "sarah@example.com"),
+        recipient_name=kw.get("name", "Sarah"),
+        company_name=kw.get("company", "Acme Corp"),
         role="HR",
-        activation_link="http://localhost:3000/force-password-reset",
+        activation_link="https://app.test/force-password-reset",
     )
+
+
+def test_simulated_when_smtp_not_configured():
+    res = _invite(EmailService(host="smtp.test", port=587, user="", password="", sender=""))
     assert res["status"] == "simulated"
-    assert res["to"] == "newuser@example.com"
     assert "Acme Corp" in res["subject"]
 
 
-@patch("resend.Emails.send")
-def test_send_invitation_email_with_resend_mock(mock_send):
-    mock_send.return_value = {"id": "msg_123456"}
-
-    service = EmailService(api_key="re_mock_api_key_123", sender_email="onboarding@demo.example.com")
-    res = service.send_invitation_email(
-        to_email="sarah.hr@demo.example.com",
-        recipient_name="Sarah Jenkins",
-        company_name="Rostra Demo Co.",
-        role="HR",
-        activation_link="https://app.rostra.io/force-password-reset",
-    )
-
-    assert res == {"id": "msg_123456"}
-    mock_send.assert_called_once()
-    call_args = mock_send.call_args[0][0]
-    assert call_args["to"] == ["sarah.hr@demo.example.com"]
-    assert call_args["from"] == "onboarding@demo.example.com"
-    assert "Rostra Demo Co." in call_args["subject"]
-    assert "Sarah Jenkins" in call_args["html"]
-    assert "https://app.rostra.io/force-password-reset" in call_args["html"]
+@patch("app.services.email_service.smtplib.SMTP")
+def test_sends_html_over_starttls(smtp_cls):
+    smtp = smtp_cls.return_value.__enter__.return_value
+    res = _invite(EmailService(**CFG))
+    assert res["status"] == "sent"
+    smtp.starttls.assert_called_once()
+    smtp.login.assert_called_once_with("login", "s3cret-key")
+    msg = smtp.send_message.call_args[0][0]
+    assert msg["To"] == "sarah@example.com"
+    assert "hello@rostra.test" in msg["From"]
+    assert "Acme Corp" in msg["Subject"]
+    assert "https://app.test/force-password-reset" in msg.get_body(("html",)).get_content()
 
 
-@patch("resend.Emails.send")
-def test_send_password_reset_email_with_resend_mock(mock_send):
-    mock_send.return_value = {"id": "msg_reset_999"}
-
-    service = EmailService(api_key="re_mock_api_key_123", sender_email="security@demo.example.com")
-    res = service.send_password_reset_email(
-        to_email="alex.rivera@demo.example.com",
-        recipient_name="Alex Rivera",
-        reset_link="https://app.rostra.io/reset-password?token=secret123",
-    )
-
-    assert res == {"id": "msg_reset_999"}
-    mock_send.assert_called_once()
-    call_args = mock_send.call_args[0][0]
-    assert call_args["to"] == ["alex.rivera@demo.example.com"]
-    assert "Reset Your Password" in call_args["subject"]
-    assert "https://app.rostra.io/reset-password?token=secret123" in call_args["html"]
+@patch("app.services.email_service.smtplib.SMTP")
+def test_html_escapes_user_supplied_text(smtp_cls):
+    smtp = smtp_cls.return_value.__enter__.return_value
+    _invite(EmailService(**CFG), name="<script>x</script>", company="A&B")
+    html = smtp.send_message.call_args[0][0].get_body(("html",)).get_content()
+    assert "<script>" not in html and "A&amp;B" in html
 
 
-@patch("resend.Emails.send")
-def test_email_service_handles_resend_failure_gracefully(mock_send):
-    mock_send.side_effect = Exception("Resend API rate limit exceeded")
-
-    service = EmailService(api_key="re_mock_api_key_123", sender_email="onboarding@demo.example.com")
-    res = service.send_invitation_email(
-        to_email="fail@example.com",
-        recipient_name="Fail User",
-        company_name="Acme Corp",
-        role="EMPLOYEE",
-        activation_link="https://app.rostra.io/force-password-reset",
-    )
-
+@patch("app.services.email_service.smtplib.SMTP")
+def test_failure_is_reported_and_password_redacted(smtp_cls):
+    smtp_cls.return_value.__enter__.return_value.login.side_effect = Exception("535 bad login s3cret-key")
+    res = _invite(EmailService(**CFG))
     assert res["status"] == "failed"
-    assert "rate limit exceeded" in res["error"]
+    assert "s3cret-key" not in res["error"] and "***REDACTED***" in res["error"]
 
 
-@patch("resend.Emails.send")
-def test_email_service_masks_secret_in_error(mock_send):
-    mock_send.side_effect = Exception("Authorization error: Bearer re_fake_secret_key_12345 invalid")
-
-    service = EmailService(api_key="re_mock_api_key_123", sender_email="onboarding@demo.example.com")
-    res = service.send_invitation_email(
-        to_email="secret_test@example.com",
-        recipient_name="Secret Test",
-        company_name="Acme Corp",
-        role="EMPLOYEE",
-        activation_link="https://app.rostra.io/force-password-reset",
+@patch("app.services.email_service.smtplib.SMTP")
+def test_inquiry_notification_replies_to_the_requester_and_ignores_header_injection(smtp_cls):
+    smtp = smtp_cls.return_value.__enter__.return_value
+    res = EmailService(**CFG).send_inquiry_notification(
+        "owner@rostra.test", "Evil\r\nBcc: x@y.z", "Jo", "jo@acme.test", None, "25-50", "Growth", "hello <b>there</b>"
     )
+    assert res["status"] == "sent"
+    msg = smtp.send_message.call_args[0][0]
+    assert msg["Reply-To"] == "jo@acme.test"
+    assert msg["Bcc"] is None
+    assert "<b>there</b>" not in msg.get_body(("html",)).get_content()
 
-    assert res["status"] == "failed"
-    assert "re_fake_secret_key_12345" not in res["error"]
-    assert "***REDACTED***" in res["error"]
+
+def test_send_in_background_runs_inline_without_smtp():
+    done = MagicMock()
+    EmailService(host="h", port=1, user="", password="", sender="").send_in_background(done, a=1)
+    done.assert_called_once_with(a=1)

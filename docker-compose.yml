@@ -33,7 +33,10 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY (32+ random characters) in your environment or .env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      INQUIRY_NOTIFY_TO: ${INQUIRY_NOTIFY_TO:-}
       EMAIL_FROM: ${EMAIL_FROM:-onboarding@demo.example.com}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://localhost:3001"]}
