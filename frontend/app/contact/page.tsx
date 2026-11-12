@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { RostraApi } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
+import { PLANS, planLabel, type PlanName } from "@/lib/plans";
 import { AuthShell, inputClass, primaryBtn } from "@/components/shared/AuthShell";
 
-type Plan = "Starter" | "Growth" | "Enterprise";
 const SIZES = ["1-10", "11-25", "25-50", "50-200", "200+"];
 
-export default function ContactPage() {
-  const [f, setF] = useState({ companyName: "", contactName: "", workEmail: "", phone: "", teamSize: "25-50", planInterest: "Growth" as Plan, message: "" });
+function ContactForm() {
+  const asked = useSearchParams().get("plan");
+  const [f, setF] = useState({ companyName: "", contactName: "", workEmail: "", phone: "", teamSize: "25-50", planInterest: (PLANS.some((p) => p.name === asked) ? asked : "Growth") as PlanName, message: "" });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -76,12 +78,20 @@ export default function ContactPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {field("teamSize", "Team size", <select id="teamSize" value={f.teamSize} onChange={set("teamSize")} className={inputClass}>{SIZES.map((s) => <option key={s}>{s}</option>)}</select>)}
-            {field("planInterest", "Plan", <select id="planInterest" value={f.planInterest} onChange={set("planInterest")} className={inputClass}><option>Starter</option><option>Growth</option><option>Enterprise</option></select>)}
+            {field("planInterest", "Plan", <select id="planInterest" value={f.planInterest} onChange={set("planInterest")} className={inputClass}>{PLANS.map((p) => <option key={p.name} value={p.name}>{planLabel(p)}</option>)}</select>)}
           </div>
           {field("message", "Anything we should know? (optional)", <textarea id="message" rows={3} maxLength={2000} value={f.message} onChange={set("message")} className={inputClass} />)}
           <button type="submit" disabled={busy} className={primaryBtn}>{busy ? "Sending…" : "Request my workspace"}</button>
         </form>
       )}
     </AuthShell>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense>
+      <ContactForm />
+    </Suspense>
   );
 }

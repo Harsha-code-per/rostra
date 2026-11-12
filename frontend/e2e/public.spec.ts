@@ -8,6 +8,16 @@ test("landing page tells the story and links to contact @mobile", async ({ page 
   await expect(page.getByRole("link", { name: "Request a workspace" }).first()).toHaveAttribute("href", "/contact");
 });
 
+test("pricing shows three plans and Enterprise preselects on the form", async ({ page }) => {
+  await page.goto("/");
+  const pricing = page.locator("#pricing");
+  for (const t of ["Starter", "Growth", "Enterprise", "₹999", "₹3,999", "Up to 25 employees", "Up to 100 employees", "Unlimited employees"]) {
+    await expect(pricing.getByText(t, { exact: false }).first()).toBeAttached();
+  }
+  await pricing.getByRole("link", { name: "Talk to us" }).click();
+  await expect(page.getByLabel("Plan")).toHaveValue("Enterprise");
+});
+
 test("landing page has no horizontal scroll @mobile", async ({ page }) => {
   await page.goto("/");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

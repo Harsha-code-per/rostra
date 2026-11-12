@@ -9,6 +9,7 @@ import { Logo } from "@/components/shared/Logo";
 const links = [
   { href: "#order", label: "Product", spy: ["order", "attendance", "leave", "payroll"] },
   { href: "#trust", label: "Trust", spy: ["trust"] },
+  { href: "#pricing", label: "Pricing", spy: ["pricing"] },
 ];
 
 /**
