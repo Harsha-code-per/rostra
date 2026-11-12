@@ -44,7 +44,7 @@ flowchart LR
     U[Browser] -->|HTTPS| W[Next.js 16 web app]
     W -->|REST, JWT| A[FastAPI API]
     A -->|async SQLAlchemy| D[(PostgreSQL)]
-    A -.->|optional| E[Resend email]
+    A -.->|optional| E[Brevo SMTP]
     P[Platform owner] --> W
 ```
 
