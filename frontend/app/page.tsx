@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { SceneLoader } from "@/components/landing/SceneLoader";
 import { FillText } from "@/components/landing/FillText";
 import { Marquee } from "@/components/landing/Marquee";
 import { TodayPodium } from "@/components/landing/TodayPodium";
+import { INCLUDED, PLANS } from "@/lib/plans";
 import { CheckInDemo, LeaveDemo, PayslipDemo } from "@/components/landing/Widgets";
 
 const focus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3b3bf2]";
@@ -89,6 +90,39 @@ export default function LandingPage() {
             </ul>
           </Act>
         </div>
+
+        {/* Pricing: flat monthly price per company. */}
+        <section id="pricing" className="relative bg-[#f4f5ff] px-5 py-24 sm:px-10 lg:px-16 lg:py-32">
+          <div className="mx-auto max-w-6xl">
+            <h2 className={`font-heading text-[clamp(2.5rem,5.2vw,4.8rem)] font-bold leading-[0.92] tracking-[-0.045em] ${INK}`}>One price for the whole company.</h2>
+            <p className={`mt-5 max-w-xl text-lg leading-relaxed ${MUTED}`}>No per-seat counting. Pick the size of your team, and every feature is included.</p>
+            <div className="mt-12 grid gap-5 lg:grid-cols-3">
+              {PLANS.map((p) => (
+                <article key={p.name} className={`flex flex-col rounded-[2rem] p-8 ${p.highlight ? "bg-[#10113a] text-white shadow-[0_30px_70px_-30px_rgba(16,17,58,0.6)]" : "border border-[#10113a]/10 bg-white"}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-heading text-2xl font-bold tracking-tight">{p.name}</h3>
+                    {p.highlight && <span className="rounded-full bg-[#ff6b3d] px-3 py-1 text-xs font-bold text-[#10113a]">Most teams</span>}
+                  </div>
+                  <p className={`mt-2 text-sm ${p.highlight ? "text-white/75" : MUTED}`}>{p.blurb}</p>
+                  <p className="mt-8 flex items-baseline gap-2">
+                    <span className="font-heading text-5xl font-bold tracking-[-0.04em]">{p.price}</span>
+                    <span className={`text-sm ${p.highlight ? "text-white/75" : MUTED}`}>{p.per}</span>
+                  </p>
+                  <p className={`mt-2 text-base font-semibold ${p.highlight ? "text-[#ff8a63]" : "text-[#3b3bf2]"}`}>{p.cap}</p>
+                  <ul className={`mt-6 flex flex-1 flex-col gap-3 border-t pt-6 text-sm ${p.highlight ? "border-white/15" : "border-[#10113a]/10"}`}>
+                    {INCLUDED.map((f) => (
+                      <li key={f} className="flex gap-3"><Check className={`mt-0.5 h-4 w-4 shrink-0 ${p.highlight ? "text-[#ff8a63]" : "text-[#3b3bf2]"}`} aria-hidden="true" />{f}</li>
+                    ))}
+                  </ul>
+                  <Link href={`/contact?plan=${p.name}`} className={`mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition-colors ${p.highlight ? "bg-white text-[#10113a] hover:bg-[#ff6b3d]" : "bg-[#10113a] text-white hover:bg-[#3b3bf2]"} ${focus}`}>
+                    {p.cta} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </article>
+              ))}
+            </div>
+            <p className={`mt-6 text-sm ${MUTED}`}>Prices are per company, per month. We set up your workspace by hand and invoice you directly; nothing is charged on the website.</p>
+          </div>
+        </section>
 
         {/* Close: one blue panel. */}
         <section className="bg-[#f4f5ff] px-4 py-10 sm:px-8">
