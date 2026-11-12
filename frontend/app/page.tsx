@@ -54,7 +54,7 @@ export default function LandingPage() {
         <Marquee />
 
         {/* The problem, said once, large. Words fill in as you scroll. */}
-        <section className="bg-[#10113a] px-5 py-32 sm:px-10 lg:px-16 lg:py-44">
+        <section data-nav-dark className="bg-[#10113a] px-5 py-32 sm:px-10 lg:px-16 lg:py-44">
           <FillText className="mx-auto max-w-5xl font-heading text-[clamp(1.9rem,4.6vw,4.4rem)] font-bold leading-[1.08] tracking-[-0.035em] text-white">
             Every HR team has the same Monday. A sheet for attendance, a chat thread for leave, a calculator for payroll. Rostra puts all three in one place, so the month closes itself.
           </FillText>
@@ -101,7 +101,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="relative z-10 overflow-hidden bg-[#10113a] px-5 pt-14 text-white sm:px-10 lg:px-16">
+      <footer data-nav-dark className="relative z-10 overflow-hidden bg-[#10113a] px-5 pt-14 text-white sm:px-10 lg:px-16">
         <div className="flex flex-wrap items-center justify-between gap-6 text-sm">
           <p className="text-white/75">© 2026 Harshavardhan K and Cholan Kinnera. All rights reserved.</p>
           <nav aria-label="Footer" className="flex gap-6 font-medium">
