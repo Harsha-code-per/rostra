@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -32,7 +33,7 @@ export default function PlatformAdminLoginPage() {
   };
 
   return (
-    <AuthShell title="Platform console" subtitle="Rostra staff only">
+    <AuthShell title="Platform console" subtitle="Rostra staff only" footer={<Link href="/forgot-password" className="text-cyan-800 hover:underline font-semibold">Forgot password?</Link>}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div>
           <label htmlFor="email" className="block text-slate-800 font-semibold text-sm mb-1.5">Email</label>

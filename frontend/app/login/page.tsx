@@ -9,7 +9,7 @@ import { AuthShell, inputClass, primaryBtn } from "@/components/shared/AuthShell
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -19,8 +19,12 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       const session = await login(email.trim(), password);
+      if (session.role === "SUPER_ADMIN") {
+        logout();
+        toast.error("Platform staff sign in at /platform-admin/login.");
+        return;
+      }
       if (session.mustChangePassword) router.push("/force-password-reset");
-      else if (session.role === "SUPER_ADMIN") router.push("/platform-admin");
       else if (session.role === "ADMIN" || session.role === "HR") router.push("/dashboard/admin");
       else router.push("/dashboard/employee");
     } catch (err) {
