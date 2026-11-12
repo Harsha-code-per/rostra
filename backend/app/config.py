@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     RATE_LIMIT_ENABLED: bool = True
 
+    # Interactive API docs (/docs). Always on outside production; in production only when this is true.
+    API_DOCS_ENABLED: bool = False
+
     # Server & Port
     PORT: int = 8000
 
