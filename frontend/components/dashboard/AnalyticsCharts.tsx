@@ -14,9 +14,9 @@ export function AttendanceTrendChart({ data }: { data: AnalyticsSummary["attenda
           <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
           <Tooltip />
           <Legend />
-          <Bar dataKey="present" name="Present" stackId="a" fill="#3b3bf2" />
-          <Bar dataKey="leave" name="On leave" stackId="a" fill="#ff6b3d" />
-          <Bar dataKey="absent" name="Not in" stackId="a" fill="#d6d3d1" radius={[4, 4, 0, 0]} />
+          <Bar isAnimationActive={false} dataKey="present" name="Present" stackId="a" fill="#3b3bf2" />
+          <Bar isAnimationActive={false} dataKey="leave" name="On leave" stackId="a" fill="#ff6b3d" />
+          <Bar isAnimationActive={false} dataKey="absent" name="Not in" stackId="a" fill="#d6d3d1" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -32,7 +32,7 @@ export function DepartmentChart({ data }: { data: AnalyticsSummary["departmentDi
           <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
           <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
           <Tooltip />
-          <Bar dataKey="count" name="Headcount" fill="#0e7490" radius={[0, 4, 4, 0]} />
+          <Bar isAnimationActive={false} dataKey="count" name="Headcount" fill="#0e7490" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

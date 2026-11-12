@@ -69,7 +69,7 @@ export default function LandingPage() {
             <p className={body}>Every check-in, leave request and payslip gets a single home. Nothing to chase and nothing to reconcile.</p>
           </Act>
           <Act id="attendance" title={<>Know who <br />is in.</>}>
-            <p className={body}>One-tap check-in and out, a company board for any date, and manual corrections that keep a note of what changed.</p>
+            <p className={body}>One-tap check-in and out, a company board for any date, and quick corrections when someone forgets to check in.</p>
             <div className="mt-6"><CheckInDemo /></div>
           </Act>
           <Act id="leave" title={<>Decide in <br />two clicks.</>}>

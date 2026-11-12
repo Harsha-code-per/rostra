@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Copy, DollarSign, Edit3, KeyRound, Plus, Search } from "lucide-react";
+import { Copy, IndianRupee, Edit3, KeyRound, Plus, Search } from "lucide-react";
 import { RostraApi, type NewEmployeeInput } from "@/lib/api";
 import type { Employee } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -175,7 +175,7 @@ export default function AdminEmployeesPage() {
                   <td className="py-3.5 pr-4 text-right">
                     <span className="inline-flex gap-1.5">
                       <button onClick={() => setEditing(e)} aria-label={`Edit ${e.firstName} ${e.lastName}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold text-xs focus-visible:outline-2 focus-visible:outline-cyan-600"><Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> Profile</button>
-                      <button onClick={() => setSalaryFor(e)} aria-label={`Salary for ${e.firstName} ${e.lastName}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-900 font-bold text-xs border border-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-600"><DollarSign className="w-3.5 h-3.5" aria-hidden="true" /> Salary</button>
+                      <button onClick={() => setSalaryFor(e)} aria-label={`Salary for ${e.firstName} ${e.lastName}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-900 font-bold text-xs border border-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-600"><IndianRupee className="w-3.5 h-3.5" aria-hidden="true" /> Salary</button>
                     </span>
                   </td>
                 </tr>
