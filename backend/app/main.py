@@ -28,12 +28,14 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+_docs = settings.API_DOCS_ENABLED or not settings.is_production
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=None if settings.is_production else f"{settings.API_V1_STR}/openapi.json",
-    docs_url=None if settings.is_production else "/docs",
-    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if _docs else None,
+    docs_url="/docs" if _docs else None,
+    redoc_url="/redoc" if _docs else None,
     lifespan=lifespan,
 )
 app.state.limiter = limiter

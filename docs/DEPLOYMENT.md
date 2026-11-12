@@ -30,6 +30,7 @@ New **Web Service**, Docker, root directory `backend`. Environment variables:
 | `APP_BASE_URL` | the same web origin (used in emails) |
 | `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | your platform-owner login. Created once on first start; change the password in the app afterwards, then remove these two variables. |
 | `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Email through [Brevo](https://www.brevo.com) (free, 300 emails a day). `SMTP_USER` is the login under SMTP & API, `SMTP_PASSWORD` an SMTP key, `EMAIL_FROM` a sender you verified in Brevo. `SMTP_HOST` and `SMTP_PORT` default to Brevo's relay. Without these, emails are logged and new admins get their temporary password on screen only. |
+| `API_DOCS_ENABLED` | `true` exposes interactive docs at `/docs` in production. Off by default because it publishes every endpoint. |
 | `INQUIRY_NOTIFY_TO` | Address that is emailed when someone requests a workspace on the website. |
 
 Health check path: `/health` (returns 503 if the database is unreachable). API docs are disabled in production.

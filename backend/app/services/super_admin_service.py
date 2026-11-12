@@ -24,6 +24,10 @@ from app.schemas.super_admin import (
 )
 
 
+# Employee cap per plan, as published on the pricing page. None = unlimited. An explicit maxEmployees overrides it.
+PLAN_EMPLOYEE_LIMITS = {"Starter": 25, "Growth": 100, "Enterprise": None}
+
+
 async def generate_unique_slug(db: AsyncSession, name: str) -> str:
     cleaned = re.sub(r'[^a-z0-9]', '', name.lower()) or "tenant"
     while True:
@@ -54,7 +58,7 @@ async def provision_new_tenant(
         domain=domain,
         plan=data.plan,
         status="ACTIVE",
-        max_employees=data.max_employees,
+        max_employees=data.max_employees if data.max_employees is not None else PLAN_EMPLOYEE_LIMITS.get(data.plan),
         currency="INR",
         is_active=True,
     )

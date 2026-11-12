@@ -228,3 +228,12 @@ async def test_inquiry_notifies_the_owner_when_configured(client: AsyncClient, m
     res = await client.post("/api/v1/inquiries", json={"companyName": "Acme", "contactName": "Jo", "workEmail": "jo@acme.example.com"})
     assert res.status_code == 201
     assert sent["to_email"] == "owner@rostra.test" and sent["company"] == "Acme" and sent["email"] == "jo@acme.example.com"
+
+
+async def test_plan_sets_the_default_employee_cap(client: AsyncClient):
+    owner = {"Authorization": "Bearer " + (await _login(client, "owner@demo.example.com", "RostraPlatform#2026")).json()["access_token"]}
+    for plan, cap in (("Starter", 25), ("Growth", 100), ("Enterprise", None)):
+        body = {"name": f"{plan} Co", "plan": plan, "adminName": "Ada Admin", "adminEmail": f"{plan.lower()}-{uuid.uuid4().hex[:6]}@example.com"}
+        res = await client.post("/api/v1/super-admin/companies", json=body, headers=owner)
+        assert res.status_code == 201, res.text
+        assert res.json()["company"]["maxEmployees"] == cap
