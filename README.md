@@ -128,7 +128,8 @@ Backend variables (see [`backend/.env.example`](backend/.env.example)):
 | `JWT_SECRET_KEY` | 32+ random characters; required in production |
 | `CORS_ORIGINS`, `APP_BASE_URL` | The web app origin |
 | `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Creates the first platform owner once, if none exists |
-| `RESEND_API_KEY`, `EMAIL_FROM` | Optional email delivery |
+| `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Optional email delivery over SMTP (Brevo relay by default) for password resets, invitations and new-request alerts |
+| `INQUIRY_NOTIFY_TO` | Who is emailed when a workspace is requested |
 
 Frontend: `NEXT_PUBLIC_API_URL` (including `/api/v1`) and `NEXT_PUBLIC_SITE_URL`.
 
@@ -180,7 +181,7 @@ Status of the product, not a promise of dates.
 
 **Next**
 - Billing and plans (the data model already carries a plan and an employee limit)
-- Verified sending domain for email, so invitations and resets can be delivered
+- Authenticated sending domain (SPF and DKIM), so mail stops landing in spam
 - State-wise professional tax, TDS and Form 16 support
 - Audit log for sensitive changes (wage, role, status)
 - Shift schedules, holidays and approval chains

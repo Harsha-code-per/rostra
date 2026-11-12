@@ -155,7 +155,8 @@ async def forgot_password(
     )
     await db.commit()
     reset_link = f"{settings.APP_BASE_URL}/reset-password?token={raw_token}"
-    email_service.send_password_reset_email(
+    email_service.send_in_background(
+        email_service.send_password_reset_email,
         to_email=profile.email,
         recipient_name=recipient_name,
         reset_link=reset_link,
@@ -279,7 +280,8 @@ async def register(
     # 4. Dispatch onboarding invitation email
     company_name = current_user.company.name if current_user.company else "your company"
     activation_link = f"{settings.APP_BASE_URL}/force-password-reset"
-    email_service.send_invitation_email(
+    email_service.send_in_background(
+        email_service.send_invitation_email,
         to_email=profile.email,
         recipient_name=f"{employee.first_name} {employee.last_name}",
         company_name=company_name,

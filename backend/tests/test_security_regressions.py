@@ -217,3 +217,14 @@ def test_neon_style_url_is_made_asyncpg_safe():
     assert args == {"ssl": True}
     assert prepare_database_url("postgres://u:p@h/db")[0] == "postgresql+asyncpg://u:p@h/db"
     assert prepare_database_url("sqlite+aiosqlite:///x.db")[1] == {"check_same_thread": False}
+
+
+async def test_inquiry_notifies_the_owner_when_configured(client: AsyncClient, monkeypatch):
+    from app.config import settings
+
+    sent = {}
+    monkeypatch.setattr(settings, "INQUIRY_NOTIFY_TO", "owner@rostra.test")
+    monkeypatch.setattr(email_service, "send_inquiry_notification", lambda **kw: sent.update(kw))
+    res = await client.post("/api/v1/inquiries", json={"companyName": "Acme", "contactName": "Jo", "workEmail": "jo@acme.example.com"})
+    assert res.status_code == 201
+    assert sent["to_email"] == "owner@rostra.test" and sent["company"] == "Acme" and sent["email"] == "jo@acme.example.com"

@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import patch
 from httpx import AsyncClient
 
 
@@ -361,17 +360,15 @@ async def test_employee_wage_privacy_and_analytics_rbac(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_forgot_password_flow(client: AsyncClient):
-    with patch("resend.Emails.send") as mock_send:
-        mock_send.return_value = {"id": "msg_forgot_123"}
-        res = await client.post("/api/v1/auth/forgot-password", json={
-            "email": "alex.rivera@demo.example.com"
-        })
-        assert res.status_code == 200
-        assert "dispatched" in res.json()["message"]
+    res = await client.post("/api/v1/auth/forgot-password", json={
+        "email": "alex.rivera@demo.example.com"
+    })
+    assert res.status_code == 200
+    assert "dispatched" in res.json()["message"]
 
-        # Test non-existent email still returns 200 to prevent enumeration
-        res_fake = await client.post("/api/v1/auth/forgot-password", json={
-            "email": "nonexistent@demo.example.com"
-        })
-        assert res_fake.status_code == 200
-        assert "dispatched" in res_fake.json()["message"]
+    # Test non-existent email still returns 200 to prevent enumeration
+    res_fake = await client.post("/api/v1/auth/forgot-password", json={
+        "email": "nonexistent@demo.example.com"
+    })
+    assert res_fake.status_code == 200
+    assert "dispatched" in res_fake.json()["message"]

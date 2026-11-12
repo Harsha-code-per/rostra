@@ -28,9 +28,14 @@ class Settings(BaseSettings):
     # Server & Port
     PORT: int = 8000
 
-    # Resend Email Service
-    RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "onboarding@resend.dev"
+    # Outgoing email over SMTP (Brevo relay by default). Without credentials, emails are logged, not sent.
+    SMTP_HOST: str = "smtp-relay.brevo.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    EMAIL_FROM: str = ""  # must be a sender verified in your SMTP provider
+    EMAIL_FROM_NAME: str = "Rostra"
+    INQUIRY_NOTIFY_TO: str = ""  # who is told when someone requests a workspace
     APP_BASE_URL: str = "http://localhost:3000"
 
     # CORS (Strict environment-driven origins)
