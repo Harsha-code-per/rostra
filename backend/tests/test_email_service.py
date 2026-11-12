@@ -68,3 +68,22 @@ def test_send_in_background_runs_inline_without_smtp():
     done = MagicMock()
     EmailService(host="h", port=1, user="", password="", sender="").send_in_background(done, a=1)
     done.assert_called_once_with(a=1)
+
+
+@patch("app.services.email_service.urllib.request.urlopen")
+def test_api_key_sends_over_https_not_smtp(urlopen):
+    with patch("app.services.email_service.smtplib.SMTP") as smtp:
+        res = _invite(EmailService(host="h", port=1, user="", password="", sender="hello@rostra.test", api_key="xkeysib-secret"))
+    assert res["status"] == "sent"
+    smtp.assert_not_called()
+    req = urlopen.call_args[0][0]
+    assert req.full_url == "https://api.brevo.com/v3/smtp/email"
+    assert req.get_header("Api-key") == "xkeysib-secret"
+    body = __import__("json").loads(req.data)
+    assert body["to"] == [{"email": "sarah@example.com"}] and body["sender"]["email"] == "hello@rostra.test"
+
+
+@patch("app.services.email_service.urllib.request.urlopen", side_effect=Exception("401 xkeysib-secret rejected"))
+def test_api_failure_redacts_key(_):
+    res = _invite(EmailService(host="h", port=1, user="", password="", sender="hello@rostra.test", api_key="xkeysib-secret"))
+    assert res["status"] == "failed" and "xkeysib-secret" not in res["error"]

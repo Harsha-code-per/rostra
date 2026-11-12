@@ -29,7 +29,8 @@ New **Web Service**, Docker, root directory `backend`. Environment variables:
 | `CORS_ORIGINS` | exactly your web origin, e.g. `https://rostra-web.vercel.app` (no `*`) |
 | `APP_BASE_URL` | the same web origin (used in emails) |
 | `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | your platform-owner login. Created once on first start; change the password in the app afterwards, then remove these two variables. |
-| `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Email through [Brevo](https://www.brevo.com) (free, 300 emails a day). `SMTP_USER` is the login under SMTP & API, `SMTP_PASSWORD` an SMTP key, `EMAIL_FROM` a sender you verified in Brevo. `SMTP_HOST` and `SMTP_PORT` default to Brevo's relay. Without these, emails are logged and new admins get their temporary password on screen only. |
+| `BREVO_API_KEY`, `EMAIL_FROM` | Email through [Brevo](https://www.brevo.com) (free, 300 a day) over HTTPS. Create the key under SMTP & API > API Keys; `EMAIL_FROM` is a sender you verified. **Use this on Render free: it blocks outbound SMTP ports 25, 465 and 587 (and 2525 times out), so SMTP cannot connect there.** |
+| `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_HOST`, `SMTP_PORT` | Fallback for hosts that allow SMTP. Ignored when `BREVO_API_KEY` is set. |
 | `API_DOCS_ENABLED` | `true` exposes interactive docs at `/docs` in production. Off by default because it publishes every endpoint. |
 | `INQUIRY_NOTIFY_TO` | Address that is emailed when someone requests a workspace on the website. |
 
