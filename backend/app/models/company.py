@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -14,6 +14,7 @@ class Company(Base):
     domain = Column(String(255), nullable=True)
     plan = Column(String(50), default="Growth", nullable=False)
     status = Column(String(50), default="ACTIVE", nullable=False)
+    max_employees = Column(Integer, nullable=True)  # None = unlimited
     currency = Column(String(10), default="INR", nullable=False)
     owner_id = Column(String(36), ForeignKey("profiles.id", ondelete="SET NULL", name="fk_company_owner", use_alter=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)

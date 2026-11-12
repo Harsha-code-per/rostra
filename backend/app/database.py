@@ -2,22 +2,14 @@ from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
+from app.db_url import prepare_database_url
 
-# Normalize postgres:// to postgresql+asyncpg:// if needed
-database_url = settings.DATABASE_URL
-if database_url.startswith("postgres://"):
-    database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
-elif database_url.startswith("postgresql://") and not database_url.startswith("postgresql+asyncpg://"):
-    database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+database_url, connect_args = prepare_database_url(settings.DATABASE_URL)
 
-# Engine configuration
-engine_kwargs = {"echo": False}
-if "sqlite" in database_url:
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-else:
-    engine_kwargs["pool_pre_ping"] = True
-    engine_kwargs["pool_size"] = 10
-    engine_kwargs["max_overflow"] = 20
+engine_kwargs = {"echo": False, "connect_args": connect_args}
+if not database_url.startswith("sqlite"):
+    # Free-tier friendly: Neon scales to zero and drops idle connections, so recycle and pre-ping.
+    engine_kwargs.update(pool_pre_ping=True, pool_size=5, max_overflow=5, pool_recycle=240)
 
 engine = create_async_engine(database_url, **engine_kwargs)
 

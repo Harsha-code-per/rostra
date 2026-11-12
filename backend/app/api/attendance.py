@@ -7,17 +7,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.core.permissions import get_current_user, require_roles
 from app.models.profile import Profile
+from app.models.attendance import AttendanceStatus
 from app.models.employee import Employee
 from app.schemas.attendance import (
     CheckInRequest,
     CheckOutRequest,
     AttendanceOut,
+    AttendanceOverrideRequest,
     AttendanceHistoryResponse,
     CompanyAttendanceItem,
 )
 from app.services.attendance_service import (
     process_check_in,
     process_check_out,
+    override_attendance,
     get_employee_attendance_history,
     get_company_attendance,
 )
@@ -27,7 +30,7 @@ router = APIRouter(prefix="/attendance", tags=["Attendance"])
 
 @router.post("/check-in", response_model=AttendanceOut)
 async def check_in(
-    req: CheckInRequest = None,
+    req: Optional[CheckInRequest] = None,
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -44,7 +47,7 @@ async def check_in(
 
 @router.post("/check-out", response_model=AttendanceOut)
 async def check_out(
-    req: CheckOutRequest = None,
+    req: Optional[CheckOutRequest] = None,
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,6 +89,23 @@ async def list_company_attendance(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_company_attendance(db, current_user.company_id, date, department)
+
+
+@router.put("/override", response_model=AttendanceOut)
+async def override_employee_attendance(
+    req: AttendanceOverrideRequest,
+    current_user: Profile = Depends(require_roles(["ADMIN", "HR"])),
+    db: AsyncSession = Depends(get_db),
+):
+    return await override_attendance(
+        db,
+        current_user.company_id,
+        req.employee_id,
+        req.work_date,
+        AttendanceStatus(req.status),
+        req.total_hours,
+        req.notes,
+    )
 
 
 @router.get("/{id_or_emp_id}", response_model=AttendanceHistoryResponse)

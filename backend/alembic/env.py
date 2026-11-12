@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.config import settings
+from app.db_url import prepare_database_url
 from app.database import Base
 # Import all models to ensure they are registered with Base.metadata
 from app.models import (  # noqa: F401
@@ -17,6 +18,8 @@ from app.models import (  # noqa: F401
     LeaveRequest,
     SalaryStructure,
     Notification,
+    Inquiry,
+    PasswordResetToken,
 )
 
 # Alembic Config object
@@ -33,21 +36,13 @@ import os
 
 
 def get_url() -> str:
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        url = config.get_main_option("sqlalchemy.url")
-    if not url:
-        url = settings.DATABASE_URL
-    if not url:
-        url = "sqlite+aiosqlite:///./dayflow.db"
-
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
-        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
+    url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+    return prepare_database_url(url)[0]
 
 
+def get_connect_args() -> dict:
+    url = os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+    return prepare_database_url(url)[1]
 
 
 def run_migrations_offline() -> None:
@@ -85,6 +80,7 @@ async def run_async_migrations() -> None:
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=get_connect_args(),
     )
 
     async with connectable.connect() as connection:

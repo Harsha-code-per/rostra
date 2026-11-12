@@ -1,5 +1,5 @@
-from typing import Optional, Any, Dict
-from pydantic import BaseModel, EmailStr, ConfigDict
+from typing import Optional
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 from app.models.profile import UserRole
 
 
@@ -10,7 +10,12 @@ class LoginRequest(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     old_password: str
-    new_password: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -18,17 +23,17 @@ class ForgotPasswordRequest(BaseModel):
 
 
 class RegisterRequest(BaseModel):
-    employee_id: str
+    employee_id: str = Field(min_length=1, max_length=50)
     email: EmailStr
-    password: str
-    first_name: str
-    last_name: str
+    password: str = Field(min_length=8, max_length=128)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
     role: Optional[UserRole] = UserRole.EMPLOYEE
     department: Optional[str] = "General"
     designation: Optional[str] = "Staff"
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
-    wage: Optional[float] = 60000.0
+    wage: Optional[float] = Field(default=60000.0, gt=0, le=100_000_000)
 
 
 

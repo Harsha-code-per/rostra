@@ -5,6 +5,6 @@ __pycache__/
 *.db
 *.sqlite3
 .env
-dayflow_before_tenant_repair.db
+rostra_before_tenant_repair.db
 htmlcov/
 .coverage

@@ -8,7 +8,6 @@ from app.models.employee import Employee, EmployeeStatus
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.leave import LeaveType, LeaveRequest, LeaveTypeEnum, LeaveStatus
 from app.models.payroll import SalaryStructure
-from app.models.notification import Notification
 from app.core.security import get_password_hash
 from app.services.payroll_service import calculate_salary_structure
 
@@ -22,7 +21,7 @@ PERSONAS = [
         "employee_id": "EMP-001",
         "first_name": "Arthur",
         "last_name": "Morgan",
-        "email": "admin@dayflow.io",
+        "email": "admin@demo.example.com",
         "phone": "+1 555-0101",
         "department": "Management",
         "designation": "Chief Executive Officer",
@@ -40,7 +39,7 @@ PERSONAS = [
         "employee_id": "EMP-002",
         "first_name": "Sarah",
         "last_name": "Jenkins",
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "phone": "+1 555-0201",
         "department": "Human Resources",
         "designation": "HR Director",
@@ -58,7 +57,7 @@ PERSONAS = [
         "employee_id": "EMP-003",
         "first_name": "Alex",
         "last_name": "Rivera",
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "phone": "+1 555-0301",
         "department": "Engineering",
         "designation": "Senior Full Stack Engineer",
@@ -76,7 +75,7 @@ PERSONAS = [
         "employee_id": "EMP-004",
         "first_name": "Elena",
         "last_name": "Rostova",
-        "email": "elena.rostova@dayflow.io",
+        "email": "elena.rostova@demo.example.com",
         "phone": "+1 555-0401",
         "department": "Engineering",
         "designation": "Staff Frontend Architect",
@@ -94,7 +93,7 @@ PERSONAS = [
         "employee_id": "EMP-005",
         "first_name": "David",
         "last_name": "Chen",
-        "email": "david.chen@dayflow.io",
+        "email": "david.chen@demo.example.com",
         "phone": "+1 555-0501",
         "department": "Engineering",
         "designation": "DevOps & Cloud Lead",
@@ -112,7 +111,7 @@ PERSONAS = [
         "employee_id": "EMP-006",
         "first_name": "Marcus",
         "last_name": "Vance",
-        "email": "marcus.vance@dayflow.io",
+        "email": "marcus.vance@demo.example.com",
         "phone": "+1 555-0601",
         "department": "Product",
         "designation": "VP of Product",
@@ -130,7 +129,7 @@ PERSONAS = [
         "employee_id": "EMP-007",
         "first_name": "Priya",
         "last_name": "Sharma",
-        "email": "priya.sharma@dayflow.io",
+        "email": "priya.sharma@demo.example.com",
         "phone": "+1 555-0701",
         "department": "Product",
         "designation": "Senior Product Manager",
@@ -148,7 +147,7 @@ PERSONAS = [
         "employee_id": "EMP-008",
         "first_name": "Chloe",
         "last_name": "Dupont",
-        "email": "chloe.dupont@dayflow.io",
+        "email": "chloe.dupont@demo.example.com",
         "phone": "+1 555-0801",
         "department": "Product",
         "designation": "Lead UI/UX Designer",
@@ -166,7 +165,7 @@ PERSONAS = [
         "employee_id": "EMP-009",
         "first_name": "Lucas",
         "last_name": "Meyer",
-        "email": "lucas.meyer@dayflow.io",
+        "email": "lucas.meyer@demo.example.com",
         "phone": "+1 555-0901",
         "department": "Sales",
         "designation": "Head of Enterprise Sales",
@@ -184,7 +183,7 @@ PERSONAS = [
         "employee_id": "EMP-010",
         "first_name": "Amina",
         "last_name": "Khan",
-        "email": "amina.khan@dayflow.io",
+        "email": "amina.khan@demo.example.com",
         "phone": "+1 555-1001",
         "department": "Marketing",
         "designation": "Growth Marketing Lead",
@@ -202,7 +201,7 @@ PERSONAS = [
         "employee_id": "EMP-011",
         "first_name": "Liam",
         "last_name": "Nelson",
-        "email": "liam.nelson@dayflow.io",
+        "email": "liam.nelson@demo.example.com",
         "phone": "+1 555-1101",
         "department": "Finance",
         "designation": "Financial Controller",
@@ -232,8 +231,8 @@ async def seed_database(target_engine=None, target_session_factory=None):
         if not company:
             company = Company(
                 id=DEFAULT_COMPANY_ID,
-                name="Dayflow Technologies Inc.",
-                slug="dayflow",
+                name="Rostra Demo Co.",
+                slug="rostra",
                 currency="INR",
                 owner_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
                 is_active=True,
@@ -421,15 +420,15 @@ async def seed_database(target_engine=None, target_session_factory=None):
 
         # 6. Seed Platform Super Admin
         print("👑 Seeding Platform Super Admin...")
-        super_admin_stmt = select(Profile).where(Profile.email == "owner@dayflow.io")
+        super_admin_stmt = select(Profile).where(Profile.email == "owner@demo.example.com")
         super_admin_res = await session.execute(super_admin_stmt)
         super_admin = super_admin_res.scalar_one_or_none()
         if not super_admin:
             super_admin = Profile(
                 id="00000000-0000-0000-0000-000000000001",
                 company_id=None,
-                email="owner@dayflow.io",
-                password_hash=get_password_hash("DayflowPlatform#2026"),
+                email="owner@demo.example.com",
+                password_hash=get_password_hash("RostraPlatform#2026"),
                 role=UserRole.SUPER_ADMIN,
                 is_active=True,
                 must_reset_password=False,
@@ -437,7 +436,7 @@ async def seed_database(target_engine=None, target_session_factory=None):
             session.add(super_admin)
         else:
             super_admin.role = UserRole.SUPER_ADMIN
-            super_admin.password_hash = get_password_hash("DayflowPlatform#2026")
+            super_admin.password_hash = get_password_hash("RostraPlatform#2026")
             super_admin.is_active = True
 
         await session.commit()

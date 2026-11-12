@@ -1,9 +1,9 @@
 from datetime import date, datetime, timezone
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, status
-from sqlalchemy import select, and_
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.attendance import Attendance, AttendanceStatus
 from app.models.employee import Employee
@@ -43,10 +43,59 @@ async def process_check_in(
             check_out=None,
             total_hours=0.0,
             status=AttendanceStatus.PRESENT,
-            notes=notes or "Checked in via Dayflow Portal",
+            notes=notes or "Checked in via Rostra",
         )
         db.add(record)
 
+    try:
+        await db.commit()
+    except IntegrityError:  # concurrent double check-in hit the unique (employee, day) constraint
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Employee has already checked in today")
+    await db.refresh(record)
+    return record
+
+
+async def override_attendance(
+    db: AsyncSession,
+    company_id: str,
+    employee_ref: str,
+    work_date: date,
+    new_status: AttendanceStatus,
+    total_hours: Optional[float],
+    notes: Optional[str],
+) -> Attendance:
+    """HR/Admin manual correction: upsert the attendance row for one employee and day."""
+    emp = (
+        await db.execute(
+            select(Employee).where(
+                Employee.company_id == company_id,
+                (Employee.id == employee_ref) | (Employee.employee_id == employee_ref),
+            )
+        )
+    ).scalar_one_or_none()
+    if not emp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Employee {employee_ref} not found in this company")
+
+    record = (
+        await db.execute(
+            select(Attendance).where(
+                Attendance.company_id == company_id,
+                Attendance.employee_id == emp.id,
+                Attendance.work_date == work_date,
+            )
+        )
+    ).scalar_one_or_none()
+    if not record:
+        record = Attendance(company_id=company_id, employee_id=emp.id, work_date=work_date)
+        db.add(record)
+    record.status = new_status
+    if total_hours is not None:
+        record.total_hours = total_hours
+    elif new_status in (AttendanceStatus.ABSENT, AttendanceStatus.ON_LEAVE):
+        record.total_hours = 0.0
+    if notes is not None:
+        record.notes = notes
     await db.commit()
     await db.refresh(record)
     return record
@@ -166,7 +215,6 @@ async def get_company_attendance(
     emp_stmt = (
         select(Employee)
         .where(Employee.company_id == company_id)
-        .options(selectinload(Employee.attendance_records))
     )
     if department and department.lower() != "all":
         emp_stmt = emp_stmt.where(Employee.department == department)

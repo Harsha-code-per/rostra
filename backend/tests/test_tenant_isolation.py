@@ -1,14 +1,14 @@
 import pytest
 import time
-from datetime import date, datetime, timezone
+from datetime import date
 from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.models.company import Company
 from app.models.profile import Profile, UserRole
 from app.models.employee import Employee, EmployeeStatus
-from app.models.leave import LeaveType, LeaveTypeEnum, LeaveRequest, LeaveStatus
-from app.core.security import get_password_hash, create_access_token
+from app.models.leave import LeaveType, LeaveTypeEnum
+from app.core.security import get_password_hash
 
 
 @pytest.mark.asyncio
@@ -107,7 +107,7 @@ async def test_multi_tenant_isolation_two_companies(client: AsyncClient, db_sess
     await db_session.commit()
 
     # Log in as Company A HR (Sarah)
-    res_a = await client.post("/api/v1/auth/login", json={"email": "sarah.hr@dayflow.io", "password": "password123"})
+    res_a = await client.post("/api/v1/auth/login", json={"email": "sarah.hr@demo.example.com", "password": "password123"})
     assert res_a.status_code == 200
     token_a = res_a.json()["access_token"]
     headers_a = {"Authorization": f"Bearer {token_a}"}
@@ -122,7 +122,7 @@ async def test_multi_tenant_isolation_two_companies(client: AsyncClient, db_sess
     list_a = await client.get("/api/v1/employees", headers=headers_a)
     assert list_a.status_code == 200
     emp_emails_a = [e["email"] for e in list_a.json()]
-    assert "sarah.hr@dayflow.io" in emp_emails_a
+    assert "sarah.hr@demo.example.com" in emp_emails_a
     assert "clark.kent@acmecorp.com" not in emp_emails_a
     assert "owner@acmecorp.com" not in emp_emails_a
 
@@ -132,7 +132,7 @@ async def test_multi_tenant_isolation_two_companies(client: AsyncClient, db_sess
     emp_emails_b = [e["email"] for e in list_b.json()]
     assert "clark.kent@acmecorp.com" in emp_emails_b
     assert "owner@acmecorp.com" in emp_emails_b
-    assert "sarah.hr@dayflow.io" not in emp_emails_b
+    assert "sarah.hr@demo.example.com" not in emp_emails_b
     assert len(list_b.json()) == 2
 
     # 3. Direct access to Company B employee by ID from Company A returns 404 (prevents IDOR)
@@ -167,23 +167,23 @@ async def test_negative_rbac_and_privilege_escalation(client: AsyncClient):
     - Employee cannot approve/reject leave (403).
     """
     # Employee Login (Alex Rivera)
-    emp_res = await client.post("/api/v1/auth/login", json={"email": "alex.rivera@dayflow.io", "password": "password123"})
+    emp_res = await client.post("/api/v1/auth/login", json={"email": "alex.rivera@demo.example.com", "password": "password123"})
     emp_token = emp_res.json()["access_token"]
     emp_headers = {"Authorization": f"Bearer {emp_token}"}
 
     # HR Login (Sarah Jenkins)
-    hr_res = await client.post("/api/v1/auth/login", json={"email": "sarah.hr@dayflow.io", "password": "password123"})
+    hr_res = await client.post("/api/v1/auth/login", json={"email": "sarah.hr@demo.example.com", "password": "password123"})
     hr_token = hr_res.json()["access_token"]
     hr_headers = {"Authorization": f"Bearer {hr_token}"}
 
     # Admin Login (Arthur Morgan)
-    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@dayflow.io", "password": "password123"})
+    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@demo.example.com", "password": "password123"})
     admin_token = admin_res.json()["access_token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # 1. Employee cannot self-register or register others
     reg_by_emp = await client.post("/api/v1/auth/register", headers=emp_headers, json={
-        "email": "hacker@dayflow.io",
+        "email": "hacker@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-999",
         "first_name": "Hacker",
@@ -194,7 +194,7 @@ async def test_negative_rbac_and_privilege_escalation(client: AsyncClient):
 
     # 2. HR cannot create ADMIN account
     reg_admin_by_hr = await client.post("/api/v1/auth/register", headers=hr_headers, json={
-        "email": "new.admin@dayflow.io",
+        "email": "new.admin@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-901",
         "first_name": "New",
@@ -205,7 +205,7 @@ async def test_negative_rbac_and_privilege_escalation(client: AsyncClient):
 
     # 3. HR cannot create HR account (only standard EMPLOYEE)
     reg_hr_by_hr = await client.post("/api/v1/auth/register", headers=hr_headers, json={
-        "email": "new.hr@dayflow.io",
+        "email": "new.hr@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-902",
         "first_name": "New",
@@ -216,7 +216,7 @@ async def test_negative_rbac_and_privilege_escalation(client: AsyncClient):
 
     # 4. Admin cannot create duplicate ADMIN account
     reg_admin_by_admin = await client.post("/api/v1/auth/register", headers=admin_headers, json={
-        "email": "second.admin@dayflow.io",
+        "email": "second.admin@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-903",
         "first_name": "Second",
@@ -252,11 +252,11 @@ async def test_password_lifecycle_and_token_invalidation(client: AsyncClient, db
     - New login with new password succeeds.
     """
     # 1. Admin onboards a new employee
-    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@dayflow.io", "password": "password123"})
+    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@demo.example.com", "password": "password123"})
     admin_headers = {"Authorization": f"Bearer {admin_res.json()['access_token']}"}
 
     new_emp_payload = {
-        "email": "onboarding.user@dayflow.io",
+        "email": "onboarding.user@demo.example.com",
         "password": "tempPassword123",
         "employee_id": "EMP-777",
         "first_name": "Sam",
@@ -270,7 +270,7 @@ async def test_password_lifecycle_and_token_invalidation(client: AsyncClient, db
 
     # 2. First login with temporary credentials
     login_res = await client.post("/api/v1/auth/login", json={
-        "email": "onboarding.user@dayflow.io",
+        "email": "onboarding.user@demo.example.com",
         "password": "tempPassword123",
     })
     assert login_res.status_code == 200
@@ -303,7 +303,7 @@ async def test_password_lifecycle_and_token_invalidation(client: AsyncClient, db
 
     # 6. Login with new password -> must_reset_password is False
     new_login_res = await client.post("/api/v1/auth/login", json={
-        "email": "onboarding.user@dayflow.io",
+        "email": "onboarding.user@demo.example.com",
         "password": "newSecurePassword456",
     })
     assert new_login_res.status_code == 200
@@ -314,7 +314,7 @@ async def test_password_lifecycle_and_token_invalidation(client: AsyncClient, db
     # 7. New token works properly
     profile_check = await client.get("/api/v1/auth/me", headers=new_headers)
     assert profile_check.status_code == 200
-    assert profile_check.json()["email"] == "onboarding.user@dayflow.io"
+    assert profile_check.json()["email"] == "onboarding.user@demo.example.com"
 
 
 @pytest.mark.asyncio
@@ -325,11 +325,11 @@ async def test_account_deactivation_lock(client: AsyncClient, db_session):
     - Active token becomes invalid if account is deactivated.
     """
     # 1. Admin login and create active user
-    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@dayflow.io", "password": "password123"})
+    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@demo.example.com", "password": "password123"})
     admin_headers = {"Authorization": f"Bearer {admin_res.json()['access_token']}"}
 
     user_payload = {
-        "email": "deactivate.me@dayflow.io",
+        "email": "deactivate.me@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-888",
         "first_name": "Test",
@@ -340,12 +340,12 @@ async def test_account_deactivation_lock(client: AsyncClient, db_session):
     await client.post("/api/v1/auth/register", headers=admin_headers, json=user_payload)
 
     # 2. Login to get token
-    login_res = await client.post("/api/v1/auth/login", json={"email": "deactivate.me@dayflow.io", "password": "password123"})
+    login_res = await client.post("/api/v1/auth/login", json={"email": "deactivate.me@demo.example.com", "password": "password123"})
     user_token = login_res.json()["access_token"]
     user_headers = {"Authorization": f"Bearer {user_token}"}
 
     # 3. Manually deactivate user in DB
-    user_stmt = select(Profile).where(Profile.email == "deactivate.me@dayflow.io")
+    user_stmt = select(Profile).where(Profile.email == "deactivate.me@demo.example.com")
     user_obj = (await db_session.execute(user_stmt)).scalar_one()
     user_obj.is_active = False
     await db_session.commit()
@@ -356,7 +356,7 @@ async def test_account_deactivation_lock(client: AsyncClient, db_session):
     assert "deactivated" in prot_res.json()["detail"] or "disabled" in prot_res.json()["detail"]
 
     # 5. Login attempts should return 401
-    login_attempt = await client.post("/api/v1/auth/login", json={"email": "deactivate.me@dayflow.io", "password": "password123"})
+    login_attempt = await client.post("/api/v1/auth/login", json={"email": "deactivate.me@demo.example.com", "password": "password123"})
     assert login_attempt.status_code == 401
 
 
@@ -366,12 +366,12 @@ async def test_transactional_multi_record_onboarding(client: AsyncClient):
     Verify onboarding atomically creates Profile, Employee, and SalaryStructure.
     Duplicate employee_id or email rolls back transaction cleanly.
     """
-    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@dayflow.io", "password": "password123"})
+    admin_res = await client.post("/api/v1/auth/login", json={"email": "admin@demo.example.com", "password": "password123"})
     admin_headers = {"Authorization": f"Bearer {admin_res.json()['access_token']}"}
 
     # Duplicate employee_id
     dup_emp_id_res = await client.post("/api/v1/auth/register", headers=admin_headers, json={
-        "email": "unique.email@dayflow.io",
+        "email": "unique.email@demo.example.com",
         "password": "password123",
         "employee_id": "EMP-001",  # Existing EMP-001
         "first_name": "Duplicate",
@@ -382,7 +382,7 @@ async def test_transactional_multi_record_onboarding(client: AsyncClient):
 
     # Duplicate email
     dup_email_res = await client.post("/api/v1/auth/register", headers=admin_headers, json={
-        "email": "admin@dayflow.io",  # Existing email
+        "email": "admin@demo.example.com",  # Existing email
         "password": "password123",
         "employee_id": "EMP-9999",
         "first_name": "Duplicate",

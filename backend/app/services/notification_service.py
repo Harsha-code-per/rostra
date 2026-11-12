@@ -14,6 +14,7 @@ async def get_user_notifications(
             Notification.user_id == user_id,
         )
         .order_by(Notification.created_at.desc())
+        .limit(100)
     )
     if unread_only:
         stmt = stmt.where(Notification.is_read == False)

@@ -3,35 +3,41 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.config import settings
 from app.database import engine, Base
 from app.api.router import api_router
+from app.bootstrap import bootstrap_super_admin
+from app.core.limiter import limiter
 from app.seed import seed_database
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Ensure tables exist & auto-seed if empty
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    try:
+    if settings.is_production:
+        # Schema is managed by Alembic; no demo data in production.
+        await bootstrap_super_admin()
+    else:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
         await seed_database()
-    except Exception as e:
-        print(f"Database initialization info: {e}")
     yield
-    # Shutdown
     await engine.dispose()
 
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    openapi_url=None if settings.is_production else f"{settings.API_V1_STR}/openapi.json",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
@@ -39,8 +45,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins if "*" not in origins else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -60,7 +66,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/", tags=["Health"])
 async def root():
     return {
-        "service": "Dayflow HRMS Backend API",
+        "service": "Rostra API",
         "version": settings.VERSION,
         "status": "online",
         "docs": "/docs",
@@ -70,11 +76,12 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {
-        "status": "healthy",
-        "database": "connected",
-        "environment": settings.ENVIRONMENT,
-    }
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "unreachable"})
+    return {"status": "healthy", "database": "connected", "environment": settings.ENVIRONMENT}
 
 
 if __name__ == "__main__":

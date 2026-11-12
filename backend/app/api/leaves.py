@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.permissions import get_current_user, require_roles
+from app.core.permissions import get_current_user, require_roles, role_value
 from app.models.profile import Profile
 from app.models.leave import LeaveStatus
 from app.schemas.leave import (
@@ -43,12 +43,11 @@ async def apply_leave(
         end_date=req.end_date,
         reason=req.reason,
         total_days=req.total_days,
-        attachment_url=req.attachment_url,
+        attachment_url=str(req.attachment_url) if req.attachment_url else None,
     )
 
-    items = await list_leave_requests(db, company_id=current_user.company_id, employee_id=current_user.employee.id)
-    matched = next((i for i in items if i["id"] == leave_req.id), None)
-    return matched or {
+    items = await list_leave_requests(db, company_id=current_user.company_id, leave_id=leave_req.id)
+    return items[0] if items else {
         "id": leave_req.id,
         "employee_id": current_user.employee.employee_id,
         "employee_name": f"{current_user.employee.first_name} {current_user.employee.last_name}",
@@ -57,7 +56,7 @@ async def apply_leave(
         "leave_type": req.leave_type.value,
         "start_date": req.start_date,
         "end_date": req.end_date,
-        "total_days": req.total_days,
+        "total_days": leave_req.total_days,
         "reason": req.reason,
         "attachment_url": req.attachment_url,
         "status": leave_req.status.value,
@@ -92,10 +91,12 @@ async def get_my_leaves(
 async def list_all_leaves(
     status_filter: Optional[LeaveStatus] = Query(None, alias="status"),
     employee_id: Optional[str] = Query(None),
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
+    user_role = role_value(current_user.role)
     if user_role == "EMPLOYEE":
         if not current_user.employee:
             return []
@@ -108,13 +109,15 @@ async def list_all_leaves(
         company_id=current_user.company_id,
         employee_id=target_emp_id,
         status_filter=status_filter,
+        limit=limit,
+        offset=offset,
     )
 
 
 @router.patch("/{leave_id}/approve", response_model=LeaveRequestOut)
 async def approve_leave(
     leave_id: str,
-    req: LeaveReviewRequest = None,
+    req: Optional[LeaveReviewRequest] = None,
     current_user: Profile = Depends(require_roles(["ADMIN", "HR"])),
     db: AsyncSession = Depends(get_db),
 ):
@@ -128,15 +131,13 @@ async def approve_leave(
         reviewer=current_user,
     )
 
-    items = await list_leave_requests(db, company_id=current_user.company_id)
-    matched = next((i for i in items if i["id"] == reviewed.id), None)
-    return matched
+    return (await list_leave_requests(db, company_id=current_user.company_id, leave_id=reviewed.id))[0]
 
 
 @router.patch("/{leave_id}/reject", response_model=LeaveRequestOut)
 async def reject_leave(
     leave_id: str,
-    req: LeaveReviewRequest = None,
+    req: Optional[LeaveReviewRequest] = None,
     current_user: Profile = Depends(require_roles(["ADMIN", "HR"])),
     db: AsyncSession = Depends(get_db),
 ):
@@ -150,7 +151,5 @@ async def reject_leave(
         reviewer=current_user,
     )
 
-    items = await list_leave_requests(db, company_id=current_user.company_id)
-    matched = next((i for i in items if i["id"] == reviewed.id), None)
-    return matched
+    return (await list_leave_requests(db, company_id=current_user.company_id, leave_id=reviewed.id))[0]
 

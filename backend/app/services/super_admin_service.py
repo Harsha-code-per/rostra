@@ -1,9 +1,9 @@
 import uuid
 import re
-import random
-from datetime import datetime, date, timezone
+import secrets
+from datetime import date
 from typing import List, Tuple
-from sqlalchemy import select, func, or_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -24,11 +24,12 @@ from app.schemas.super_admin import (
 )
 
 
-def generate_unique_slug(name: str) -> str:
-    cleaned = re.sub(r'[^a-z0-9]', '', name.lower())
-    if not cleaned:
-        cleaned = "tenant"
-    return f"{cleaned[:20]}-{random.randint(100, 999)}"
+async def generate_unique_slug(db: AsyncSession, name: str) -> str:
+    cleaned = re.sub(r'[^a-z0-9]', '', name.lower()) or "tenant"
+    while True:
+        slug = f"{cleaned[:20]}-{secrets.token_hex(3)}"
+        if not (await db.execute(select(Company.id).where(Company.slug == slug))).scalar_one_or_none():
+            return slug
 
 
 async def provision_new_tenant(
@@ -40,9 +41,9 @@ async def provision_new_tenant(
     if existing_profile.scalar_one_or_none():
         raise ValueError(f"User profile with email {data.admin_email} already exists")
 
-    slug = generate_unique_slug(data.name)
+    slug = await generate_unique_slug(db, data.name)
     domain = data.domain or f"{slug.split('-')[0]}.com"
-    temp_password = f"Dayflow@{random.randint(1000, 9999)}"
+    temp_password = f"Rx-{secrets.token_urlsafe(9)}"
 
     # 1. Create Company
     company_id = str(uuid.uuid4())
@@ -53,6 +54,7 @@ async def provision_new_tenant(
         domain=domain,
         plan=data.plan,
         status="ACTIVE",
+        max_employees=data.max_employees,
         currency="INR",
         is_active=True,
     )
@@ -138,6 +140,7 @@ async def provision_new_tenant(
         adminEmail=admin_profile.email,
         employeeCount=1,
         status=company.status,
+        maxEmployees=company.max_employees,
         createdAt=company.created_at,
     )
 
@@ -178,6 +181,7 @@ async def list_all_tenants(db: AsyncSession) -> List[CompanyTenantOut]:
                 adminEmail=admin_email,
                 employeeCount=len(c.employees) if c.employees else 1,
                 status=c.status or ("ACTIVE" if c.is_active else "SUSPENDED"),
+                maxEmployees=c.max_employees,
                 createdAt=c.created_at,
             )
         )
@@ -219,6 +223,7 @@ async def update_tenant_status(db: AsyncSession, company_id: str, new_status: st
         adminEmail=admin_email,
         employeeCount=len(company.employees) if company.employees else 1,
         status=company.status,
+        maxEmployees=company.max_employees,
         createdAt=company.created_at,
     )
 

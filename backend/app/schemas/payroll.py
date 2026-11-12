@@ -1,6 +1,5 @@
 from datetime import date
-from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class EarningsBreakdown(BaseModel):
@@ -22,6 +21,10 @@ class AttendancePayrollSummary(BaseModel):
     payable_days: float = 22.0
     unpaid_days: float = 0.0
     effective_net_payout: float = 0.0
+    present_days: float = 0.0
+    paid_leave_days: float = 0.0
+    month: int = 0
+    year: int = 0
 
 
 class SalaryBreakdownOut(BaseModel):
@@ -40,7 +43,7 @@ class SalaryBreakdownOut(BaseModel):
 
 
 class WageUpdateRequest(BaseModel):
-    wage: float
+    wage: float = Field(gt=0, le=100_000_000)
 
 
 class SalaryRecalculationResponse(BaseModel):

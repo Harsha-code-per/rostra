@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.employee import EmployeeStatus
 
 
@@ -38,7 +38,7 @@ class EmployeeUpdate(BaseModel):
     avatar_url: Optional[str] = None
     address: Optional[str] = None
     emergency_contact: Optional[Dict[str, Any]] = None
-    wage: Optional[float] = None
+    wage: Optional[float] = Field(default=None, gt=0, le=100_000_000)
 
 
 class EmployeeOut(BaseModel):

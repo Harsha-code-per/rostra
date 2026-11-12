@@ -1,8 +1,7 @@
-from datetime import date, datetime, timezone
-from typing import Dict, Any, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Dict, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.employee import Employee
 from app.models.payroll import SalaryStructure
@@ -28,12 +27,12 @@ def calculate_salary_structure(wage: float) -> Dict[str, float]:
     wage = float(round(wage, 2))
     basic = round(wage * 0.50, 2)
     hra = round(basic * 0.50, 2)
-    standard_allowance = 4167.00
     performance_bonus = round(basic * 0.0833, 2)
     lta = round(basic * 0.0833, 2)
 
-    subtotal_without_fixed = basic + hra + standard_allowance + performance_bonus + lta
-    fixed_allowance = max(0.0, round(wage - subtotal_without_fixed, 2))
+    # Components always add up to the wage: the standard allowance shrinks for very low wages.
+    standard_allowance = min(4167.00, round(wage - (basic + hra + performance_bonus + lta), 2))
+    fixed_allowance = round(wage - (basic + hra + standard_allowance + performance_bonus + lta), 2)
 
     gross_salary = wage
     pf = round(basic * 0.12, 2)
@@ -144,53 +143,63 @@ async def update_employee_salary(
     return structure
 
 
+def _weekdays(start: date, end: date) -> int:
+    return sum(1 for i in range((end - start).days + 1) if (start + timedelta(days=i)).weekday() < 5)
+
+
 async def get_employee_payroll_summary(
-    db: AsyncSession, employee: Employee, company_id: str
+    db: AsyncSession,
+    employee: Employee,
+    company_id: str,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
 ) -> Dict[str, Any]:
     structure = await get_or_create_salary_structure(db, employee.id, company_id, default_wage=75000.0)
 
-    # Compute actual attendance stats for current month
+    # Payroll period: the requested month, counted up to today when it is the current month.
     today = date.today()
-    start_of_month = date(today.year, today.month, 1)
-
-    stmt_att = select(Attendance).where(
-        Attendance.company_id == company_id,
-        Attendance.employee_id == employee.id,
-        Attendance.work_date >= start_of_month,
-        Attendance.work_date <= today,
-    )
-    res_att = await db.execute(stmt_att)
-    records = res_att.scalars().all()
+    year = year or today.year
+    month = month or today.month
+    period_start = date(year, month, 1)
+    period_end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
+    counted_end = min(period_end, today)
 
     present_days = 0.0
-    for r in records:
-        if r.status == AttendanceStatus.PRESENT:
-            present_days += 1.0
-        elif r.status == AttendanceStatus.HALF_DAY:
-            present_days += 0.5
+    paid_leaves = 0.0
+    if counted_end >= period_start:
+        records = (
+            await db.execute(
+                select(Attendance).where(
+                    Attendance.company_id == company_id,
+                    Attendance.employee_id == employee.id,
+                    Attendance.work_date.between(period_start, counted_end),
+                )
+            )
+        ).scalars().all()
+        for r in records:
+            if r.status == AttendanceStatus.PRESENT:
+                present_days += 1.0
+            elif r.status == AttendanceStatus.HALF_DAY:
+                present_days += 0.5
 
-    # Check approved paid leaves
-    stmt_leave = (
-        select(LeaveRequest)
-        .join(LeaveType)
-        .where(
-            LeaveRequest.company_id == company_id,
-            LeaveRequest.employee_id == employee.id,
-            LeaveRequest.status == LeaveStatus.APPROVED,
-            LeaveType.is_paid == True,
-            LeaveRequest.start_date >= start_of_month,
-        )
-    )
-    res_leave = await db.execute(stmt_leave)
-    leaves = res_leave.scalars().all()
-    paid_leaves = sum(l.total_days for l in leaves)
+        leaves = (
+            await db.execute(
+                select(LeaveRequest)
+                .join(LeaveType)
+                .where(
+                    LeaveRequest.company_id == company_id,
+                    LeaveRequest.employee_id == employee.id,
+                    LeaveRequest.status == LeaveStatus.APPROVED,
+                    LeaveType.is_paid,
+                    LeaveRequest.start_date <= counted_end,
+                    LeaveRequest.end_date >= period_start,
+                )
+            )
+        ).scalars().all()
+        for lv in leaves:  # weekdays of each approved paid leave that fall inside the period
+            paid_leaves += _weekdays(max(lv.start_date, period_start), min(lv.end_date, counted_end))
 
-    # Default total working days = 22
-    total_working_days = 22
-    # If no records exist in new DB, use realistic default
-    if not records and paid_leaves == 0:
-        present_days = 20.0
-        paid_leaves = 1.5
+    total_working_days = _weekdays(period_start, counted_end) if counted_end >= period_start else 0
 
     payable_summary = calculate_payable_payout(
         net_salary=structure.net_salary,
@@ -221,6 +230,12 @@ async def get_employee_payroll_summary(
         "gross_salary": structure.gross_salary,
         "total_deductions": structure.total_deductions,
         "net_salary": structure.net_salary,
-        "attendance_summary": payable_summary,
+        "attendance_summary": {
+            **payable_summary,
+            "present_days": present_days,
+            "paid_leave_days": paid_leaves,
+            "month": month,
+            "year": year,
+        },
     }
 

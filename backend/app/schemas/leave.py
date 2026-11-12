@@ -1,20 +1,20 @@
 from datetime import date, datetime
 from typing import Optional, List, Dict
-from pydantic import BaseModel, ConfigDict
-from app.models.leave import LeaveTypeEnum, LeaveStatus
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field
+from app.models.leave import LeaveTypeEnum
 
 
 class LeaveApplyRequest(BaseModel):
     leave_type: LeaveTypeEnum
     start_date: date
     end_date: date
-    total_days: int = 1
-    reason: str
-    attachment_url: Optional[str] = None
+    total_days: Optional[int] = None  # deprecated: ignored, computed server-side
+    reason: str = Field(min_length=3, max_length=2000)
+    attachment_url: Optional[AnyHttpUrl] = None
 
 
 class LeaveReviewRequest(BaseModel):
-    hr_comments: Optional[str] = ""
+    hr_comments: Optional[str] = Field(default="", max_length=2000)
 
 
 class LeaveRequestOut(BaseModel):

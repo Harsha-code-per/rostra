@@ -1,4 +1,3 @@
-import os
 import pytest
 import sqlite3
 from alembic.config import Config
@@ -25,17 +24,17 @@ async def test_migration_pipeline_and_data_preservation(tmp_path):
     # 1. Upgrade to 0001
     command.upgrade(alembic_cfg, "0001_initial_schema")
 
-    # 2. Insert un-scoped demo data directly (as if existing in pre-migration dayflow.db)
+    # 2. Insert un-scoped demo data directly (as if existing in pre-migration rostra.db)
     conn = sqlite3.connect(test_db_path)
     cur = conn.cursor()
 
     cur.execute("""
         INSERT INTO profiles (id, email, password_hash, role, created_at, updated_at)
-        VALUES ('user-1', 'existing@dayflow.io', 'hash123', 'EMPLOYEE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+        VALUES ('user-1', 'existing@demo.example.com', 'hash123', 'EMPLOYEE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     """)
     cur.execute("""
         INSERT INTO employees (id, user_id, employee_id, first_name, last_name, email, department, designation, joining_date, status, created_at, updated_at)
-        VALUES ('emp-1', 'user-1', 'EMP-OLD-01', 'Old', 'User', 'existing@dayflow.io', 'Engineering', 'Developer', CURRENT_DATE, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+        VALUES ('emp-1', 'user-1', 'EMP-OLD-01', 'Old', 'User', 'existing@demo.example.com', 'Engineering', 'Developer', CURRENT_DATE, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     """)
     cur.execute("""
         INSERT INTO salary_structures (id, employee_id, effective_from, wage, basic, hra, standard_allowance, performance_bonus, lta, fixed_allowance, pf, professional_tax, gross_salary, total_deductions, net_salary, created_at, updated_at)

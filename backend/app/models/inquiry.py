@@ -15,7 +15,7 @@ class Inquiry(Base):
     team_size = Column(String(50), default="25-50", nullable=False)
     plan_interest = Column(String(50), default="Growth", nullable=False)
     message = Column(Text, nullable=True)
-    status = Column(String(50), default="NEW", nullable=False)  # NEW, CONTACTED, PROVISIONED
+    status = Column(String(50), default="NEW", nullable=False, index=True)  # NEW, CONTACTED, PROVISIONED
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
