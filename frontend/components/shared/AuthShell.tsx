@@ -1,11 +1,11 @@
 import React from "react";
 import { Logo } from "./Logo";
 
-export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: React.ReactNode; footer?: React.ReactNode }) {
+export function AuthShell({ title, subtitle, children, footer, wide }: { title: string; subtitle?: string; children: React.ReactNode; footer?: React.ReactNode; wide?: boolean }) {
   return (
     <div className="min-h-dvh bg-[#f4f5ff] text-slate-900 flex flex-col font-sans">
       <main id="main" className="flex-1 flex items-center justify-center p-4 py-10">
-        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8">
+        <div className={`w-full ${wide ? "max-w-2xl" : "max-w-md"} bg-white rounded-3xl border border-slate-200 shadow-xl p-6 sm:p-8`}>
           <div className="flex flex-col items-center text-center mb-6 gap-3">
             <Logo className="h-10 w-10" />
             <h1 className="text-2xl font-bold font-heading">{title}</h1>
