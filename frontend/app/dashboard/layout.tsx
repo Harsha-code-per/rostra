@@ -1,21 +1,42 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PersonaDemoBar } from "@/components/shared/PersonaDemoBar";
-import { Navbar } from "@/components/shared/Navbar";
-import { Sidebar } from "@/components/shared/Sidebar";
-import { FlowAIBar } from "@/components/shared/FlowAIBar";
+import { Sidebar } from "@/components/shell/Sidebar";
+import { TopStrip } from "@/components/shell/TopStrip";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [flowAIOpen, setFlowAIOpen] = useState(false);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Route guard: signed in, password set, and the right area for the role.
+  const isAdminArea = pathname.startsWith("/dashboard/admin");
+  const isStaff = user?.role === "ADMIN" || user?.role === "HR";
+  const redirectTo = isLoading
+    ? null
+    : !user
+      ? "/login"
+      : user.mustChangePassword
+        ? "/force-password-reset"
+        : user.role === "SUPER_ADMIN"
+          ? "/platform-admin"
+          : isAdminArea && !isStaff
+            ? "/dashboard/employee"
+            : null;
+  useEffect(() => {
+    if (redirectTo) router.replace(redirectTo);
+  }, [redirectTo, router]);
 
   // Restore collapsed preference from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("dayflow_sidebar_collapsed");
+      const saved = localStorage.getItem("rostra_sidebar_collapsed");
       if (saved !== null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restore preference after mount
         setIsCollapsed(saved === "true");
       }
     } catch {
@@ -27,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setIsCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("dayflow_sidebar_collapsed", String(next));
+        localStorage.setItem("rostra_sidebar_collapsed", String(next));
       } catch {
         // ignore
       }
@@ -47,35 +68,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  return (
-    <div className="h-screen w-screen overflow-hidden bg-[#fafafc] text-slate-900 flex flex-col selection:bg-cyan-500/20 selection:text-cyan-900">
-      {/* Top 1-Click Judge Persona Switcher Bar (pinned at top) */}
-      <header className="shrink-0 z-50">
-        <PersonaDemoBar />
-        <Navbar
-          onToggleSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          onOpenFlowAI={() => setFlowAIOpen(true)}
-        />
-      </header>
-
-      {/* Main Workspace with Sidebar & Content (fills 100% of remaining viewport) */}
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Pinned Full-Height Sidebar */}
-        <Sidebar
-          isMobileOpen={mobileSidebarOpen}
-          onCloseMobile={() => setMobileSidebarOpen(false)}
-          isCollapsed={isCollapsed}
-          onToggleCollapse={handleToggleCollapse}
-        />
-
-        {/* ONLY Dynamic Page Content Scrolls */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 transition-all duration-300">
-          <div className="fluid-container">{children}</div>
-        </main>
+  if (isLoading || !user || redirectTo) {
+    return (
+      <div className="min-h-dvh grid place-items-center bg-[#f4f5ff]" role="status" aria-live="polite">
+        <span className="text-sm text-slate-600">Loading your workspace…</span>
       </div>
+    );
+  }
 
-      {/* FlowAI Modal */}
-      <FlowAIBar isOpen={flowAIOpen} onClose={() => setFlowAIOpen(false)} />
+  return (
+    <div className="flex h-dvh w-full overflow-hidden bg-[#f4f5ff] text-stone-900 selection:bg-teal-700/20">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:m-2 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-semibold">
+        Skip to content
+      </a>
+      <Sidebar
+        collapsed={isCollapsed}
+        onToggleCollapse={handleToggleCollapse}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
+      <main id="main" tabIndex={-1} className="h-full min-w-0 flex-1 overflow-y-auto p-4 focus:outline-none sm:p-6 lg:px-10 lg:py-8">
+        <div className="fluid-container">
+          <TopStrip onOpenMenu={() => setMobileSidebarOpen(true)} />
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

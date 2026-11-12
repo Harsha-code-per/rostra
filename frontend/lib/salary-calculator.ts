@@ -25,7 +25,7 @@ export interface PayableSalaryResult {
 }
 
 /**
- * Dynamic Salary Calculation Engine matching Dayflow Backend rules:
+ * Dynamic Salary Calculation Engine matching the Rostra backend rules:
  * - Basic = 50% of Wage
  * - HRA = 50% of Basic (25% of Wage)
  * - Standard Allowance = ₹4,167 fixed
@@ -43,12 +43,13 @@ export function calculateSalaryStructure(wageInput: number | string): SalaryComp
 
   const basic = Math.round(wage * 0.5 * 100) / 100;
   const hra = Math.round(basic * 0.5 * 100) / 100;
-  const standardAllowance = 4167.0;
   const performanceBonus = Math.round(basic * 0.0833 * 100) / 100;
   const lta = Math.round(basic * 0.0833 * 100) / 100;
 
+  // Mirrors the backend: components always add up to the wage; the standard allowance shrinks for very low wages.
+  const standardAllowance = Math.min(4167.0, Math.round((wage - (basic + hra + performanceBonus + lta)) * 100) / 100);
   const grossSubtotal = basic + hra + standardAllowance + performanceBonus + lta;
-  const fixedAllowance = Math.round(Math.max(0, wage - grossSubtotal) * 100) / 100;
+  const fixedAllowance = Math.round((wage - grossSubtotal) * 100) / 100;
 
   const grossSalary = Math.round((basic + hra + standardAllowance + performanceBonus + lta + fixedAllowance) * 100) / 100;
 

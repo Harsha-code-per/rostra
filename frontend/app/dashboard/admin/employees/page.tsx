@@ -1,557 +1,218 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { DayflowApiClient } from "@/lib/api";
-import { Employee } from "@/lib/mock-data";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Copy, DollarSign, Edit3, KeyRound, Plus, Search } from "lucide-react";
+import { RostraApi, type NewEmployeeInput } from "@/lib/api";
+import type { Employee } from "@/lib/types";
+import { formatCurrency } from "@/lib/utils";
 import { EmployeeEditDrawer } from "@/components/employees/EmployeeEditDrawer";
 import { SalaryStructureEditor } from "@/components/payroll/SalaryStructureEditor";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import {
-  Users,
-  Search,
-  Filter,
-  Eye,
-  Edit3,
-  DollarSign,
-  LayoutGrid,
-  List,
-  Mail,
-  Phone,
-  Briefcase,
-  Sparkles,
-  Plus,
-  Copy,
-  KeyRound,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { AvatarBadge } from "@/components/shared/AvatarBadge";
+import { Dialog } from "@/components/shared/Dialog";
+import { inputClass } from "@/components/shared/AuthShell";
 
-export default function AdminEmployeesPage() {
-  const router = useRouter();
-  const { user, switchPersona } = useAuth();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDept, setSelectedDept] = useState("ALL");
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+const STATUS_STYLE: Record<string, string> = {
+  ACTIVE: "bg-emerald-50 text-emerald-800 border-emerald-300",
+  ON_LEAVE: "bg-purple-50 text-purple-800 border-purple-300",
+  TERMINATED: "bg-rose-50 text-rose-800 border-rose-300",
+};
 
-  const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<Employee | null>(null);
-  const [selectedEmployeeForSalary, setSelectedEmployeeForSalary] = useState<Employee | null>(null);
+function nextEmployeeCode(list: Employee[]): string {
+  const max = list.reduce((m, e) => Math.max(m, Number(/(\d+)$/.exec(e.employeeId)?.[1] ?? 0)), 0);
+  return `EMP-${String(max + 1).padStart(3, "0")}`;
+}
 
-  // Onboard Employee Modal State
-  const [showOnboardModal, setShowOnboardModal] = useState(false);
-  const [newFirstName, setNewFirstName] = useState("");
-  const [newLastName, setNewLastName] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("+1 555-0199");
-  const [newDept, setNewDept] = useState("Engineering");
-  const [newDesignation, setNewDesignation] = useState("Software Engineer");
-  const [newWage, setNewWage] = useState(85000);
-  const [isOnboarding, setIsOnboarding] = useState(false);
+function OnboardDialog({ code, onClose, onCreated }: { code: string; onClose: () => void; onCreated: (e: Employee, pass: string) => void }) {
+  const [f, setF] = useState({ employeeId: code, firstName: "", lastName: "", email: "", phone: "", department: "", designation: "", wage: "50000", role: "EMPLOYEE" as "EMPLOYEE" | "HR" });
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  // Invitation Credentials Modal State
-  const [createdCredentials, setCreatedCredentials] = useState<{
-    employee: Employee;
-    tempPass: string;
-  } | null>(null);
-
-  const fetchEmployees = () => {
-    DayflowApiClient.getEmployees().then(setEmployees);
-  };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const departments = ["ALL", "Engineering", "Product", "Human Resources", "Sales", "Marketing", "Finance"];
-
-  const filtered = employees.filter((emp) => {
-    const matchesSearch =
-      `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.designation.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesDept = selectedDept === "ALL" || emp.department === selectedDept;
-    return matchesSearch && matchesDept;
-  });
-
-  const handleInspectAs = (emp: Employee) => {
-    if (emp.employeeId === "EMP-003") {
-      switchPersona("alex");
-      router.push("/dashboard/employee");
-    } else {
-      toast.info(`Switched context to ${emp.firstName} ${emp.lastName}`);
-      router.push("/dashboard/employee");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const input: NewEmployeeInput = { ...f, wage: Number(f.wage) };
+      const res = await RostraApi.createEmployee(input);
+      onCreated(res.employee, res.temporaryPassword);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not onboard this person");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleOnboardSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsOnboarding(true);
+  const field = (id: string, label: string, el: React.ReactNode) => (
+    <div><label htmlFor={id} className="block text-sm font-semibold text-slate-800 mb-1.5">{label}</label>{el}</div>
+  );
+
+  return (
+    <Dialog title="Onboard a team member" description="Creates their login with a one-time password." onClose={onClose} className="max-w-lg">
+      <form onSubmit={submit} className="flex flex-col gap-3.5">
+        <div className="grid grid-cols-2 gap-3">
+          {field("ob-first", "First name", <input id="ob-first" required maxLength={100} value={f.firstName} onChange={set("firstName")} className={inputClass} />)}
+          {field("ob-last", "Last name", <input id="ob-last" required maxLength={100} value={f.lastName} onChange={set("lastName")} className={inputClass} />)}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {field("ob-email", "Work email", <input id="ob-email" type="email" required autoComplete="off" value={f.email} onChange={set("email")} className={inputClass} />)}
+          {field("ob-phone", "Phone", <input id="ob-phone" type="tel" value={f.phone} onChange={set("phone")} className={inputClass} />)}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {field("ob-dept", "Department", <input id="ob-dept" required maxLength={100} value={f.department} onChange={set("department")} className={inputClass} />)}
+          {field("ob-title", "Job title", <input id="ob-title" required maxLength={100} value={f.designation} onChange={set("designation")} className={inputClass} />)}
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {field("ob-code", "Employee ID", <input id="ob-code" required maxLength={50} value={f.employeeId} onChange={set("employeeId")} className={`${inputClass} font-mono`} />)}
+          {field("ob-wage", "Monthly wage (₹)", <input id="ob-wage" type="number" required min={1} step={1} value={f.wage} onChange={set("wage")} className={`${inputClass} font-mono`} />)}
+          {field("ob-role", "Access", <select id="ob-role" value={f.role} onChange={set("role")} className={inputClass}><option value="EMPLOYEE">Employee</option><option value="HR">HR</option></select>)}
+        </div>
+        <div className="flex justify-end gap-2.5 mt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold text-sm focus-visible:outline-2 focus-visible:outline-cyan-600">Cancel</button>
+          <button type="submit" disabled={busy} className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">{busy ? "Onboarding…" : "Onboard"}</button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+export default function AdminEmployeesPage() {
+  const [employees, setEmployees] = useState<Employee[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [dept, setDept] = useState("ALL");
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [salaryFor, setSalaryFor] = useState<Employee | null>(null);
+  const [onboarding, setOnboarding] = useState(false);
+  const [credentials, setCredentials] = useState<{ employee: Employee; pass: string } | null>(null);
+
+  const load = useCallback(() => {
+    RostraApi.getEmployees()
+      .then((e) => (setEmployees(e), setError(null)))
+      .catch((e) => setError(e instanceof Error ? e.message : "Could not load employees"));
+  }, []);
+
+  useEffect(() => {
+     
+    load();
+  }, [load]);
+
+  const departments = useMemo(() => ["ALL", ...Array.from(new Set((employees ?? []).map((e) => e.department))).sort()], [employees]);
+  const q = query.trim().toLowerCase();
+  const filtered = (employees ?? []).filter(
+    (e) => (dept === "ALL" || e.department === dept) && (!q || `${e.firstName} ${e.lastName} ${e.employeeId} ${e.designation} ${e.email}`.toLowerCase().includes(q))
+  );
+
+  const copyCredentials = async () => {
+    if (!credentials) return;
     try {
-      const nextEmpNum = `EMP-0${employees.length + 1}`;
-      const res = await DayflowApiClient.createEmployee({
-        employeeId: nextEmpNum,
-        firstName: newFirstName,
-        lastName: newLastName,
-        email: newEmail,
-        phone: newPhone,
-        department: newDept,
-        designation: newDesignation,
-        joiningDate: new Date().toISOString().split("T")[0],
-        status: "ACTIVE",
-        address: "San Francisco, CA",
-        emergencyContact: { name: "Family Contact", relationship: "Next of Kin", phone: "+1 555-0999" },
-        wage: Number(newWage),
-      });
-
-      fetchEmployees();
-      setShowOnboardModal(false);
-      setCreatedCredentials({
-        employee: res.employee,
-        tempPass: res.temporaryPassword,
-      });
-
-      toast.success(`Onboarded ${res.employee.firstName} ${res.employee.lastName}!`, {
-        description: `Credentials generated with temporary password.`,
-      });
-
-      setNewFirstName("");
-      setNewLastName("");
-      setNewEmail("");
+      await navigator.clipboard.writeText(`Email: ${credentials.employee.email}\nTemporary password: ${credentials.pass}\nSign in: ${window.location.origin}/login`);
+      toast.success("Copied to clipboard");
     } catch {
-      toast.error("Failed to onboard employee");
-    } finally {
-      setIsOnboarding(false);
+      toast.error("Copy failed. Select the text and copy it manually.");
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in">
-      {/* Header */}
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900">Employee Directory</h1>
-          <p className="text-xs text-slate-500">
-            Browse staff roster, onboard team members, and manage dynamic compensation profiles.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900">Employees</h1>
+          <p className="text-sm text-slate-600">{employees ? `${employees.length} people` : "Loading…"}</p>
         </div>
+        <button onClick={() => setOnboarding(true)} disabled={!employees} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">
+          <Plus className="w-4 h-4" aria-hidden="true" /> Onboard employee
+        </button>
+      </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowOnboardModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold shadow-xs transition-all hover:scale-[1.02]"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Onboard Employee</span>
-          </button>
-
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white border border-slate-200 shadow-xs">
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-xl transition-all ${
-                viewMode === "grid" ? "bg-cyan-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-900"
-              }`}
-              title="Grid View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`p-2 rounded-xl transition-all ${
-                viewMode === "table" ? "bg-cyan-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-900"
-              }`}
-              title="Table View"
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="flex flex-wrap items-end gap-3 p-4 rounded-3xl bg-white border border-slate-200">
+        <div className="relative flex-1 min-w-[220px]">
+          <label htmlFor="emp-search" className="sr-only">Search employees</label>
+          <Search className="w-4 h-4 text-slate-600 absolute left-3.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+          <input id="emp-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, ID, title or email" className={`${inputClass} pl-10`} />
+        </div>
+        <div>
+          <label htmlFor="emp-dept" className="sr-only">Department</label>
+          <select id="emp-dept" value={dept} onChange={(e) => setDept(e.target.value)} className={inputClass}>
+            {departments.map((d) => <option key={d} value={d}>{d === "ALL" ? "All departments" : d}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* Search & Department Filters */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-3xl glass-panel border border-slate-200 shadow-xs">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, ID, title, or email..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-cyan-500 focus:bg-white"
-          />
-        </div>
+      {error && <p role="alert" className="p-4 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-800">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {departments.map((dept) => (
-            <button
-              key={dept}
-              onClick={() => setSelectedDept(dept)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
-                selectedDept === dept
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-              }`}
-            >
-              {dept}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* View Modes */}
-      {viewMode === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((emp) => (
-            <div
-              key={emp.id}
-              className="p-5 rounded-3xl glass-panel border border-slate-200/90 shadow-sm hover:border-cyan-400 hover:shadow-md transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Card Top: Avatar, Name & Status */}
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <AvatarBadge
-                      name={`${emp.firstName} ${emp.lastName}`}
-                      department={emp.department}
-                      size="md"
-                      status={emp.status}
-                      showStatus
-                    />
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 group-hover:text-cyan-800 transition-colors">
-                        {emp.firstName} {emp.lastName}
-                      </h3>
-                      <p className="text-xs text-cyan-700 font-medium">{emp.designation}</p>
-                      <span className="text-[10px] font-mono text-slate-400 font-bold">{emp.employeeId}</span>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      emp.status === "ACTIVE"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : emp.status === "ON_LEAVE"
-                        ? "bg-purple-50 text-purple-700 border border-purple-200"
-                        : "bg-rose-50 text-rose-700 border border-rose-200"
-                    }`}
-                  >
-                    {emp.status}
-                  </span>
-                </div>
-
-                {/* Contact & Meta */}
-                <div className="flex flex-col gap-1.5 text-xs text-slate-500 mb-4 bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{emp.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>{emp.department}</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px]">
-                    <span className="text-slate-400">Monthly Wage:</span>
-                    <span className="font-mono font-bold text-cyan-700">{formatCurrency(emp.wage)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                <button
-                  onClick={() => setSelectedEmployeeForEdit(emp)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Profile</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedEmployeeForSalary(emp)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-bold text-xs border border-cyan-200 transition-colors"
-                >
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>Salary</span>
-                </button>
-
-                <button
-                  onClick={() => handleInspectAs(emp)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 text-slate-600 transition-colors"
-                  title="Inspect Employee View"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        /* Table View */
-        <div className="rounded-3xl glass-panel border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
+      <div className="rounded-3xl bg-white border border-slate-200 overflow-x-auto">
+        {!employees && !error ? (
+          <p role="status" className="p-6 text-sm text-slate-600">Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p className="p-8 text-center text-sm text-slate-600">{employees?.length ? "No one matches your search." : "No employees yet. Onboard your first team member."}</p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Employee directory</caption>
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
               <tr>
-                <th className="py-3.5 px-4">Employee</th>
-                <th className="py-3.5">ID</th>
-                <th className="py-3.5">Department</th>
-                <th className="py-3.5">Designation</th>
-                <th className="py-3.5">Monthly Wage</th>
-                <th className="py-3.5">Status</th>
-                <th className="py-3.5 text-right pr-4">Actions</th>
+                <th scope="col" className="py-3.5 px-4 font-semibold">Employee</th>
+                <th scope="col" className="py-3.5 font-semibold">Department</th>
+                <th scope="col" className="py-3.5 font-semibold">Wage / month</th>
+                <th scope="col" className="py-3.5 font-semibold">Status</th>
+                <th scope="col" className="py-3.5 pr-4 text-right font-semibold"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((emp) => (
-                <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
+              {filtered.map((e) => (
+                <tr key={e.id}>
                   <td className="py-3.5 px-4">
-                    <div>
-                      <span className="font-bold text-slate-800 block">
-                        {emp.firstName} {emp.lastName}
+                    <span className="flex items-center gap-3">
+                      <AvatarBadge name={`${e.firstName} ${e.lastName}`} department={e.department} size="sm" />
+                      <span>
+                        <span className="font-bold text-slate-900 block">{e.firstName} {e.lastName}</span>
+                        <span className="text-xs text-slate-600">{e.designation} · <span className="font-mono">{e.employeeId}</span></span>
                       </span>
-                      <span className="text-[10px] text-slate-400">{emp.email}</span>
-                    </div>
-                  </td>
-                  <td className="py-3.5 font-mono text-slate-500">{emp.employeeId}</td>
-                  <td className="py-3.5 text-slate-700 font-semibold">{emp.department}</td>
-                  <td className="py-3.5 text-slate-600">{emp.designation}</td>
-                  <td className="py-3.5 font-mono font-bold text-cyan-700">{formatCurrency(emp.wage)}</td>
-                  <td className="py-3.5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        emp.status === "ACTIVE"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : emp.status === "ON_LEAVE"
-                          ? "bg-purple-50 text-purple-700 border border-purple-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
-                    >
-                      {emp.status}
                     </span>
                   </td>
-                  <td className="py-3.5 text-right pr-4">
-                    <div className="inline-flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleInspectAs(emp)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px]"
-                      >
-                        Inspect
-                      </button>
-                      <button
-                        onClick={() => setSelectedEmployeeForSalary(emp)}
-                        className="px-2.5 py-1 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-bold text-[11px] border border-cyan-200"
-                      >
-                        Wage
-                      </button>
-                    </div>
+                  <td className="py-3.5 text-slate-800">{e.department}</td>
+                  <td className="py-3.5 font-mono font-bold text-cyan-900">{formatCurrency(e.wage)}</td>
+                  <td className="py-3.5"><span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${STATUS_STYLE[e.status]}`}>{e.status.replace("_", " ")}</span></td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className="inline-flex gap-1.5">
+                      <button onClick={() => setEditing(e)} aria-label={`Edit ${e.firstName} ${e.lastName}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold text-xs focus-visible:outline-2 focus-visible:outline-cyan-600"><Edit3 className="w-3.5 h-3.5" aria-hidden="true" /> Profile</button>
+                      <button onClick={() => setSalaryFor(e)} aria-label={`Salary for ${e.firstName} ${e.lastName}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-900 font-bold text-xs border border-cyan-300 focus-visible:outline-2 focus-visible:outline-cyan-600"><DollarSign className="w-3.5 h-3.5" aria-hidden="true" /> Salary</button>
+                    </span>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        )}
+      </div>
+
+      {onboarding && (
+        <OnboardDialog
+          code={nextEmployeeCode(employees ?? [])}
+          onClose={() => setOnboarding(false)}
+          onCreated={(employee, pass) => {
+            setOnboarding(false);
+            setCredentials({ employee, pass });
+            load();
+          }}
+        />
       )}
 
-      {/* MODAL: Onboard Employee */}
-      {showOnboardModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-              <div>
-                <h3 className="text-lg font-bold font-heading text-slate-900">
-                  Onboard Team Member
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Adds staff to company roster and creates initial login credentials.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowOnboardModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleOnboardSubmit} className="flex flex-col gap-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">First Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newFirstName}
-                    onChange={(e) => setNewFirstName(e.target.value)}
-                    placeholder="e.g. Jordan"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Last Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newLastName}
-                    onChange={(e) => setNewLastName(e.target.value)}
-                    placeholder="e.g. Blake"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Work Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    placeholder="jordan.blake@acmecorp.io"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Department</label>
-                  <select
-                    value={newDept}
-                    onChange={(e) => setNewDept(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs font-semibold"
-                  >
-                    <option value="Engineering">Engineering</option>
-                    <option value="Product">Product</option>
-                    <option value="Human Resources">Human Resources (HR)</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Finance">Finance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Job Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={newDesignation}
-                    onChange={(e) => setNewDesignation(e.target.value)}
-                    placeholder="Senior QA Engineer"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:border-cyan-500 text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">
-                  Monthly Base CTC Wage (INR ₹) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="20000"
-                  step="5000"
-                  value={newWage}
-                  onChange={(e) => setNewWage(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono font-bold focus:outline-none focus:border-cyan-500 text-xs"
-                />
-              </div>
-
-              <div className="flex gap-2.5 justify-end mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowOnboardModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isOnboarding}
-                  className="px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-xs"
-                >
-                  {isOnboarding ? "Onboarding..." : "Complete Onboarding"}
-                </button>
-              </div>
-            </form>
+      {credentials && (
+        <Dialog title="Share these sign-in details" description="The password is shown once. They will be asked to change it at first sign-in." onClose={() => setCredentials(null)}>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm font-mono space-y-2 mb-5 break-all">
+            <p>Email: <strong>{credentials.employee.email}</strong></p>
+            <p>Employee ID: <strong>{credentials.employee.employeeId}</strong></p>
+            <p className="flex items-center gap-2"><KeyRound className="w-4 h-4 shrink-0 text-rose-700" aria-hidden="true" /> Password: <strong className="text-rose-800 select-all">{credentials.pass}</strong></p>
           </div>
-        </div>
-      )}
-
-      {/* MODAL: Generated Credentials */}
-      {createdCredentials && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <KeyRound className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold font-heading text-slate-900">
-                  Staff Onboarding Complete
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Credentials generated for {createdCredentials.employee.firstName} {createdCredentials.employee.lastName}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2 font-mono mb-6">
-              <div>Email: <strong className="text-slate-900">{createdCredentials.employee.email}</strong></div>
-              <div>Employee ID: <strong className="text-slate-900">{createdCredentials.employee.employeeId}</strong></div>
-              <div>Temporary Password: <strong className="text-rose-600">{createdCredentials.tempPass}</strong></div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `Email: ${createdCredentials.employee.email}\nTemporary Password: ${createdCredentials.tempPass}\nLogin: ${window.location.origin}/login`
-                  );
-                  toast.success("Copied credentials to clipboard!");
-                }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Details</span>
-              </button>
-              <button
-                onClick={() => setCreatedCredentials(null)}
-                className="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs"
-              >
-                Done
-              </button>
-            </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={copyCredentials} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold text-sm focus-visible:outline-2 focus-visible:outline-cyan-600"><Copy className="w-4 h-4" aria-hidden="true" /> Copy</button>
+            <button onClick={() => setCredentials(null)} className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">Done</button>
           </div>
-        </div>
+        </Dialog>
       )}
 
-      {/* Modals */}
-      <EmployeeEditDrawer
-        employee={selectedEmployeeForEdit}
-        isOpen={Boolean(selectedEmployeeForEdit)}
-        onClose={() => setSelectedEmployeeForEdit(null)}
-        onSaved={fetchEmployees}
-      />
-
-      <SalaryStructureEditor
-        employee={selectedEmployeeForSalary}
-        isOpen={Boolean(selectedEmployeeForSalary)}
-        onClose={() => setSelectedEmployeeForSalary(null)}
-        onSaved={fetchEmployees}
-      />
+      <EmployeeEditDrawer employee={editing} isOpen={Boolean(editing)} onClose={() => setEditing(null)} onSaved={load} />
+      <SalaryStructureEditor employee={salaryFor} isOpen={Boolean(salaryFor)} onClose={() => setSalaryFor(null)} onSaved={load} />
     </div>
   );
 }

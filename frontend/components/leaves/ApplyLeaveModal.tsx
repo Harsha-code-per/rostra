@@ -1,163 +1,81 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { DayflowApiClient } from "@/lib/api";
-import { LeaveType } from "@/lib/mock-data";
-import { X, Calendar, Send } from "lucide-react";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
+import { Send } from "lucide-react";
+import { RostraApi } from "@/lib/api";
+import type { LeaveType } from "@/lib/types";
+import { Dialog } from "@/components/shared/Dialog";
+import { inputClass } from "@/components/shared/AuthShell";
 
 interface ApplyLeaveModalProps {
-  employeeId?: string;
   isOpen: boolean;
   onClose: () => void;
   onApplied?: () => void;
 }
 
-export function ApplyLeaveModal({ employeeId, isOpen, onClose, onApplied }: ApplyLeaveModalProps) {
-  const { user } = useAuth();
+const today = () => new Date().toISOString().split("T")[0];
+
+export function ApplyLeaveModal({ isOpen, onClose, onApplied }: ApplyLeaveModalProps) {
   const [leaveType, setLeaveType] = useState<LeaveType>("SICK");
-  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split("T")[0]);
+  const [startDate, setStartDate] = useState(today());
+  const [endDate, setEndDate] = useState(today());
   const [reason, setReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   if (!isOpen) return null;
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = end.getTime() - start.getTime();
-  const calculatedDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
+  const days = Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1;
+  const invalidRange = Number.isNaN(days) || days < 1;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reason.trim()) {
-      toast.error("Please provide a reason for your leave application");
-      return;
-    }
-    if (end < start) {
-      toast.error("End date cannot be before start date");
-      return;
-    }
-
-    setIsSubmitting(true);
+    setBusy(true);
     try {
-      await DayflowApiClient.applyLeave({
-        employeeId: employeeId || user?.employee.id || "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3",
-        employeeName: `${user?.employee.firstName || "Alex"} ${user?.employee.lastName || "Rivera"}`,
-        department: user?.employee.department || "Engineering",
-        avatarUrl: "",
-        leaveType,
-        startDate,
-        endDate,
-        totalDays: calculatedDays,
-        reason,
-      });
-
-      confetti({ particleCount: 30, spread: 45, origin: { y: 0.8 } });
-      toast.success("Leave application submitted!", {
-        description: `Your ${calculatedDays}-day ${leaveType} leave request has been sent for HR review.`,
-      });
+      await RostraApi.applyLeave({ leaveType, startDate, endDate, reason: reason.trim() });
+      toast.success("Leave request sent to HR");
       onApplied?.();
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to submit leave application");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not submit the request");
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-md glass-panel rounded-3xl border border-cyan-300 shadow-2xl p-6 sm:p-7 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 rounded-2xl bg-cyan-50 text-cyan-600 border border-cyan-200 shadow-xs">
-            <Calendar className="w-5 h-5" />
+    <Dialog title="Apply for time off" description="Your request goes to HR for approval." onClose={onClose}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="leave-type" className="block text-sm font-semibold text-slate-800 mb-1.5">Leave type</label>
+          <select id="leave-type" value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)} className={inputClass}>
+            <option value="PAID">Paid leave</option>
+            <option value="SICK">Sick leave</option>
+            <option value="CASUAL">Casual leave</option>
+            <option value="UNPAID">Unpaid leave</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="leave-start" className="block text-sm font-semibold text-slate-800 mb-1.5">From</label>
+            <input id="leave-start" type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputClass} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">Apply for Time Off</h3>
-            <p className="text-xs text-slate-500">Submit your leave request for HR approval.</p>
+            <label htmlFor="leave-end" className="block text-sm font-semibold text-slate-800 mb-1.5">To</label>
+            <input id="leave-end" type="date" required min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
           </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Leave Type Select */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Leave Type</label>
-            <select
-              value={leaveType}
-              onChange={(e) => setLeaveType(e.target.value as LeaveType)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-cyan-500"
-            >
-              <option value="PAID">Paid Vacation Leave (Annual Quota: 18)</option>
-              <option value="SICK">Medical / Sick Leave (Quota: 10)</option>
-              <option value="CASUAL">Casual / Personal Leave (Quota: 6)</option>
-              <option value="UNPAID">Unpaid Leave (Affects Payable Days)</option>
-            </select>
-          </div>
-
-          {/* Date Range Selection */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Start Date</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-cyan-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">End Date</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-800 focus:outline-none focus:border-cyan-500"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Calculated Duration Banner */}
-          <div className="p-3.5 rounded-2xl bg-cyan-50 border border-cyan-200 flex items-center justify-between text-xs">
-            <span className="text-slate-600 font-medium">Total Requested Duration:</span>
-            <span className="font-bold text-cyan-800 font-mono text-sm">{calculatedDays} Day(s)</span>
-          </div>
-
-          {/* Reason Input */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reason / Remarks</label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Doctor consultation, recovery from seasonal flu, or personal travel..."
-              rows={3}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-cyan-500"
-              required
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-500/25 transition-all disabled:opacity-50"
-          >
-            <Send className="w-4 h-4" />
-            <span>{isSubmitting ? "Submitting..." : "Submit Leave Application"}</span>
-          </button>
-        </form>
-      </div>
-    </div>
+        <p role="status" className={`text-sm font-semibold ${invalidRange ? "text-red-700" : "text-cyan-800"}`}>
+          {invalidRange ? "The end date must be on or after the start date." : `${days} day${days > 1 ? "s" : ""} requested`}
+        </p>
+        <div>
+          <label htmlFor="leave-reason" className="block text-sm font-semibold text-slate-800 mb-1.5">Reason</label>
+          <textarea id="leave-reason" required minLength={3} maxLength={2000} rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass} />
+        </div>
+        <button type="submit" disabled={busy || invalidRange} className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">
+          <Send className="w-4 h-4" aria-hidden="true" /> {busy ? "Sending…" : "Send request"}
+        </button>
+      </form>
+    </Dialog>
   );
 }
