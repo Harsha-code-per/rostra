@@ -1,310 +1,230 @@
-<div align="center">
+<p align="center">
+  <img src="docs/logo.svg" alt="Rostra" width="84" />
+</p>
 
-# ⚡ Dayflow HRMS
-### *Next-Generation Enterprise Workforce Operating System & Multi-Tenant SaaS Platform*
+<h1 align="center">Rostra</h1>
 
-[![Live Demo](https://img.shields.io/badge/Production_App-Vercel_Live-000000.svg?style=for-the-badge&logo=vercel&logoColor=white)](https://dayflow-hrms-chi.vercel.app/)
-[![API Docs](https://img.shields.io/badge/REST_API-FastAPI_Swagger-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://dayflow-api-mnu6.onrender.com/docs)
-[![Database](https://img.shields.io/badge/PostgreSQL_16-Render_Managed-336791.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://render.com)
-[![Availability](https://img.shields.io/badge/Availability-99.99%25_(UptimeRobot)-22c55e.svg?style=for-the-badge&logo=uptimerobot&logoColor=white)](https://dayflow-api-mnu6.onrender.com/health)
-[![Build Status](https://img.shields.io/badge/Tests-35%2F35_Passing_(100%25)-brightgreen.svg?style=for-the-badge&logo=pytest&logoColor=white)](#-automated-test-suite--verification)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=for-the-badge)](LICENSE)
+<p align="center">
+  <strong>Attendance, leave and payroll for Indian teams, in one workspace.</strong><br/>
+  A multi-tenant HR platform: every company gets its own sealed workspace, and HR stops chasing spreadsheets.
+</p>
 
-<br/>
+<p align="center">
+  <a href="https://github.com/Harsha-code-per/rostra/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Harsha-code-per/rostra/actions/workflows/ci.yml/badge.svg" /></a>
+  <img alt="Backend tests" src="https://img.shields.io/badge/backend%20tests-54%20passing-3b3bf2" />
+  <img alt="E2E tests" src="https://img.shields.io/badge/e2e%20%2B%20axe-20%20passing-3b3bf2" />
+  <img alt="Accessibility" src="https://img.shields.io/badge/WCAG-2.2%20AA%20checked-10113a" />
+  <img alt="License" src="https://img.shields.io/badge/license-proprietary-ff6b3d" />
+</p>
 
-**Event**: Odoo × NMIT Hackathon 2026  
-**Architecture**: Multi-Tenant SaaS B2B Workforce Operating System  
-**Frontend**: Next.js 16 (Turbopack) • React 19 • TypeScript • Tailwind CSS v4 • Three.js WebGL  
-**Backend**: FastAPI • SQLAlchemy 2.0 (Async) • PostgreSQL 16 • Alembic • Pydantic v2 • PyJWT  
-
-[🚀 Launch Live Web App](https://dayflow-hrms-chi.vercel.app/) • [📖 Frontend Guide](frontend/README.md) • [⚙️ Backend Specs](backend/README.md) • [📑 System Flows](docs/SYSTEM_FLOWS.md)
-
-</div>
-
----
-
-## 📑 Table of Contents
-
-- [🌟 Executive Overview](#-executive-overview)
-- [🌐 Live Cloud Deployments](#-live-cloud-deployments)
-- [🏢 Multi-Tenant SaaS Hierarchy & Security Architecture](#-multi-tenant-saas-hierarchy--security-architecture)
-- [⚡ The 7-Stage Real-Data SaaS Lifecycle](#-the-7-stage-real-data-saas-lifecycle)
-- [🎯 Interactive Feature Matrix](#-interactive-feature-matrix)
-- [👥 Evaluation Personas & 1-Click Access](#-evaluation-personas--1-click-access)
-- [🏛️ Repository Architecture](#️-repository-architecture)
-- [📊 Dynamic Statutory Payroll Formula](#-dynamic-statutory-payroll-formula)
-- [🚀 Quickstart & Local Setup](#-quickstart--local-setup)
-- [🧪 Automated Test Suite & Verification](#-automated-test-suite--verification)
-- [🛡️ Security, Secrets & Compliance](#️-security-secrets--compliance)
+<p align="center">
+  <img src="docs/screenshots/landing.png" alt="Rostra landing page" width="920" />
+</p>
 
 ---
 
-## 🌟 Executive Overview
+## Why Rostra
 
-**Dayflow HRMS** is an enterprise-grade, high-performance Human Resource Management System engineered for organizational transparency, frictionless employee operations, dynamic statutory payroll governance, and multi-tenant SaaS scaling.
+Every HR team has the same Monday: a sheet for attendance, a chat thread for leave, a calculator for payroll. The three never agree, and the month-end close is a scramble.
 
-Built from the ground up for the **Odoo × NMIT Hackathon 2026**, Dayflow combines:
-1. **Interactive 3D WebGL Landing Canvas**: High-performance particle mesh with smooth camera navigation.
-2. **Fixed-Viewport Command Center**: Sleek studio layout with collapsible rail sidebar (`Ctrl+B`) and tabbed executive navigation.
-3. **Real-Time Leave Governance Kanban**: 3-column drag-free review board with 1-click status transitions and confetti celebrations.
-4. **Biometric Shift Ring & Live Stopwatch**: Real-time ticking session stopwatch with circular 8-hour shift visualizer.
-5. **Dynamic Indian Statutory Payroll Engine**: Instant auto-recomputation of Basic (50%), HRA, Allowances, PF (12%), PT (₹200), and net take-home pay.
-6. **Vector PDF Payslip Generator**: Client-side branded vector PDF export with statutory breakdowns.
-7. **Platform Super Admin Control Plane**: Multi-tenant client provisioning, lead intake management, and zero-trust temporary credentials.
-8. **24/7 Availability & Synthetic Heartbeat**: Automated UptimeRobot heartbeat daemon maintaining 0ms cold-start and 99.99% evaluation uptime.
+Rostra puts all three on one record. A check-in, an approved leave day and a payslip all come from the same data, so there is nothing to reconcile.
 
----
+- **Built for Indian payroll first.** Basic, HRA, Provident Fund and Professional Tax are calculated from the wage and the days actually worked.
+- **Multi-tenant from day one.** Companies are isolated workspaces with their own admins, HR staff and employees. A platform console provisions and suspends them.
+- **Honest about what it does.** Rostra calculates payroll and exports it. It does not move money.
 
-## 🌐 Live Cloud Deployments
+## What it does
 
-| Component | Cloud Provider | Status | Live URL |
-| :--- | :--- | :---: | :--- |
-| **Frontend Web App** | Vercel | 🟢 **Active** | [`https://dayflow-hrms-chi.vercel.app`](https://dayflow-hrms-chi.vercel.app/) |
-| **Backend REST API** | Render | 🟢 **Active** | [`https://dayflow-api-mnu6.onrender.com`](https://dayflow-api-mnu6.onrender.com/) |
-| **Interactive Swagger Docs** | Render | 🟢 **Active** | [`https://dayflow-api-mnu6.onrender.com/docs`](https://dayflow-api-mnu6.onrender.com/docs) |
-| **PostgreSQL 16 Database** | Render Managed | 🟢 **Active** | Isolated Relational Storage (Singapore Region) |
-| **24/7 Health Telemetry** | UptimeRobot | 🟢 **Active** | 5-min Synthetic Heartbeat Daemon (Zero Cold-Start) |
+| For | Capabilities |
+|---|---|
+| **Employees** | One-tap check-in and out with a live timer, attendance history and monthly summary, leave balances and requests, payslips by month with PDF download, profile and emergency contact |
+| **HR and admins** | Company attendance board for any date with manual corrections for missed check-ins, leave approvals (a request can be decided exactly once), employee directory and onboarding with one-time passwords, salary structure editor, payroll register with CSV export, analytics |
+| **Platform owner** | Create customer workspaces with a plan and employee limit, suspend or reactivate a workspace (everyone in it is locked out immediately), triage website inquiries |
 
----
+## Screenshots
 
-## 🏢 Multi-Tenant SaaS Hierarchy & Security Architecture
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard.png" alt="Admin overview" /><br/><sub><b>Overview.</b> Live headcount, attendance and the leave queue.</sub></td>
+    <td width="50%"><img src="docs/screenshots/payroll.png" alt="Payroll register" /><br/><sub><b>Payroll.</b> Per-month register from attendance and approved leave.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/employees.png" alt="Employee directory" /><br/><sub><b>Employees.</b> Search, onboard, edit profile and salary.</sub></td>
+    <td width="50%"><img src="docs/screenshots/leave.png" alt="Leave approvals" /><br/><sub><b>Leave.</b> Review with balances attached.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/landing-3d.png" alt="Landing page 3D scene" /><br/><sub><b>Landing.</b> A scroll-driven 3D scene, lazy-loaded and optional.</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/mobile-landing.png" alt="Mobile landing page" width="200" /><br/><sub><b>Mobile.</b> Fully responsive, no horizontal scroll.</sub></td>
+  </tr>
+</table>
 
-Dayflow implements a strict 3-tier organizational hierarchy with row-level tenant isolation:
-
-```mermaid
-flowchart TD
-    subgraph ControlPlane ["Dayflow Operations Control Plane"]
-        Owner["Platform Super Admin (/platform-admin)"]
-        Inquiries["Client Inquiries & Pricing Tier Provisioning (/contact)"]
-    end
-
-    subgraph ClientWorkspace ["Company Workspace (Acme Corp / Nexus Corp)"]
-        CEO["Company Admin / Founder (Forced 1st Login Reset)"]
-        HR["HR Director (Command Center / Kanban / Approvals)"]
-        Staff["Employee Self-Service (Live Stopwatch / Leaves / Payslips)"]
-    end
-
-    Inquiries -->|1. Lead Submitted| Owner
-    Owner -->|2. Provisions Tenant & Dispatches Temp Key| CEO
-    CEO -->|3. Sets Permanent Password & Onboards HR| HR
-    HR -->|4. Onboards Staff Directory & Governs Payroll| Staff
-```
-
-### 1. Platform Super Admin (`/platform-admin`)
-- Dedicated login gate (`/platform-admin/login`) for platform operations staff.
-- Control plane to review enterprise inquiries, provision tenant workspaces, and toggle workspace states (`ACTIVE`, `SUSPENDED`).
-
-### 2. Company Founder / Admin (`/force-password-reset` $\to$ `/dashboard/admin`)
-- Intercepted upon first login with temporary credentials by the `must_reset_password: true` security gate.
-- Must establish permanent secure password before accessing workspace data.
-
-### 3. HR Director (`/dashboard/admin`)
-- Comprehensive staff directory management, department assignments, and CTC wage configuration.
-- Real-time leave approvals with reason documentation.
-
-### 4. Employee (`/dashboard/employee`)
-- Self-service biometric clock-in/out stopwatch, leave quota applications, and PDF payslip downloads.
-
----
-
-## ⚡ The 7-Stage Real-Data SaaS Lifecycle
-
-Every phase of the multi-tenant workflow is verified against live PostgreSQL relational tables:
+## Architecture
 
 ```mermaid
 flowchart LR
-    S1["1. Public Lead Intake (/contact)"] --> S2["2. Super Admin Tenant Provisioning"]
-    S2 --> S3["3. Founder 1st-Login Hard Reset"]
-    S3 --> S4["4. Staff Onboarding & Wage Setup"]
-    S4 --> S5["5. Biometric Attendance Punch"]
-    S5 --> S6["6. Leave Governance Kanban"]
-    S6 --> S7["7. Statutory Payroll & PDF Export"]
+    U[Browser] -->|HTTPS| W[Next.js 16 web app]
+    W -->|REST, JWT| A[FastAPI API]
+    A -->|async SQLAlchemy| D[(PostgreSQL)]
+    A -.->|optional| E[Resend email]
+    P[Platform owner] --> W
 ```
 
-| Stage | Trigger / Route | Database Mutation | Security & Logic |
-| :--- | :--- | :--- | :--- |
-| **1. Lead Intake** | `POST /api/v1/inquiries` | Insert into `inquiries` | Captures team size, tier, and contact metadata |
-| **2. Provisioning** | `POST /api/v1/super-admin/companies` | Insert into `companies`, `profiles` | Generates secure temporary password `Dayflow@XXXX` |
-| **3. Hard Reset** | `POST /api/v1/auth/change-password` | Update `profiles.password_hash` | Zero-trust: Clears `must_reset_password` flag |
-| **4. Onboarding** | `POST /api/v1/auth/register` | Insert into `employees`, `salary_structures` | Automatically calculates statutory salary breakdown |
-| **5. Biometrics** | `POST /api/v1/attendance/check-in` | Insert into `attendance` | Duplicate prevention; records timestamp & IP |
-| **6. Leave Review** | `PATCH /api/v1/leaves/{id}/approve` | Update `leave_requests.status` | Auto-syncs employee state to `ON_LEAVE` |
-| **7. Payroll** | `GET /api/v1/payroll/{emp_id}` | Dynamic aggregation | Computes statutory breakdown & generates vector PDF |
+| Layer | Choice | Notes |
+|---|---|---|
+| Web | Next.js 16 (App Router), React 19, Tailwind 4, three.js | One typed API client; recharts and jsPDF are lazy-loaded |
+| API | FastAPI, async SQLAlchemy 2, Pydantic 2 | Routers under `/api/v1`, services hold business logic |
+| Database | PostgreSQL 16+ (Neon in production), Alembic | Migrations are idempotent and verified on a real Postgres in CI |
+| Auth | JWT (HS256), bcrypt | Sessions are invalidated on password change |
+| Tooling | uv, pnpm, ruff, ESLint, Playwright, axe-core | |
 
----
+## Security and tenancy
 
-## 🎯 Interactive Feature Matrix
+- **Tenant isolation.** Every query is scoped by the caller's company. Isolation is covered by tests that provision two companies and try to cross the boundary.
+- **Roles.** `SUPER_ADMIN`, `ADMIN`, `HR`, `EMPLOYEE`. Role creation is a whitelist: nobody can create or promote themselves into `SUPER_ADMIN` through the API.
+- **Workspace kill switch.** Suspending a company rejects its existing tokens and new sign-ins.
+- **Passwords.** Hashed with bcrypt off the event loop. Reset links use hashed, single-use, expiring tokens. New staff get strong one-time passwords and must change them at first sign-in.
+- **Abuse protection.** Sign-in, forgot-password, reset and the public inquiry form are rate limited.
+- **Safe production defaults.** In production the API refuses to start with a weak `JWT_SECRET_KEY` or a wildcard CORS origin, seeds no demo data, and serves no API docs.
+- **Validated input.** Emails, enums, wage ranges, password length and leave length are validated server-side. The client never decides leave duration.
 
-```
-┌──────────────────────────────┬──────────────────────────────┬──────────────────────────────┐
-│       FEATURE MODULE         │       ENTERPRISE VALUE       │      TECHNICAL IMPLEMENTATION│
-├──────────────────────────────┼──────────────────────────────┼──────────────────────────────┤
-│ 3D Particle Hero Canvas      │ Instant visual WOW factor    │ Three.js WebGL & Lenis Smooth│
-│ Collapsible Rail Sidebar     │ Maximized workspace area     │ Fixed-viewport shell (Ctrl+B)│
-│ Workforce Flowchart          │ 6-stage lifecycle visibility │ Interactive telemetry nodes  │
-│ Leave Governance Kanban      │ Frictionless approvals       │ 3-column board with Confetti │
-│ Attendance Velocity Visualizer│ Real-time presence telemetry │ Recharts Area & Bar trends   │
-│ Shift Progress Ring          │ Daily work-time transparency │ 8-hour SVG circular gauge    │
-│ Dynamic Statutory Payroll    │ Zero-error compliance        │ Pure Python/TS formula engine│
-│ Vector PDF Payslips          │ Instant employee compliance  │ jsPDF client-side renderer   │
-└──────────────────────────────┴──────────────────────────────┴──────────────────────────────┘
-```
+Found a vulnerability? Please report it privately through [GitHub security advisories](https://github.com/Harsha-code-per/rostra/security/advisories/new) rather than a public issue.
 
----
+## Quality
 
-## 👥 Evaluation Personas & 1-Click Access
+| Check | Result |
+|---|---|
+| Backend | 54 pytest tests (security regressions, tenant isolation, payroll maths, migrations), ruff clean |
+| Frontend | ESLint, TypeScript strict and production build all clean |
+| End-to-end | 20 Playwright tests against the real API on desktop and mobile: onboarding, forced password reset, check-in, leave approval, suspension lockout, role guards |
+| Accessibility | axe-core (WCAG 2.2 A and AA) runs on every public and signed-in page and fails the build on any violation |
+| CI | GitHub Actions runs all of the above, and applies migrations to a Postgres service container |
 
-Use the **Sticky Top Evaluation Bar** on [`/login`](https://dayflow-hrms-chi.vercel.app/login) to switch between roles instantly:
+## Run it locally
 
-| Persona | Role | Email | Password | Access Level |
-| :--- | :--- | :--- | :--- | :--- |
-| 👑 **Platform Owner** | Super Admin | `owner@dayflow.io` | `DayflowPlatform#2026` | Multi-Tenant Control Plane |
-| 🔐 **New Founder** | 1st-Login Reset | `elena.vance@starlight.ai` | *Temporary Key* | Hard Password Reset Gate |
-| 🛡️ **Arthur Morgan** | CEO / Admin | `admin@dayflow.io` | `password123` | Full Company Command Center |
-| 👩‍💼 **Sarah Jenkins** | HR Director | `sarah.hr@dayflow.io` | `password123` | Directory, Leaves, Payroll |
-| 👨‍💻 **Alex Rivera** | Lead Engineer | `alex.rivera@dayflow.io` | `password123` | Attendance, Leaves, Payslips |
+Requirements: Python 3.14 with [uv](https://docs.astral.sh/uv/), Node 22 with [pnpm](https://pnpm.io/).
 
----
-
-## 🏛️ Repository Architecture
-
-```
-ODOOXNMITX2026/
-├── frontend/                          # Next.js 16 App Router (Turbopack)
-│   ├── app/                           # 22-Route Application Sitemap
-│   │   ├── (auth)/login/              # Multi-persona evaluation login
-│   │   ├── contact/                   # Client pricing & inquiry intake
-│   │   ├── force-password-reset/      # Zero-trust 1st-login security gate
-│   │   ├── platform-admin/            # Super Admin tenant control plane
-│   │   ├── dashboard/admin/           # HR Command Center (Pulse, Kanban, Flowchart)
-│   │   └── dashboard/employee/        # Self-Service (Stopwatch, Shift Ring, PDF)
-│   ├── components/                    # Modular UI Component System
-│   │   ├── dashboard/                 # Kanban, Velocity Charts, Shift Ring, Flowchart
-│   │   ├── landing/                   # 3D WebGL Canvas, Hero, Pricing Matrix
-│   │   └── shared/                    # Fixed-viewport shell, Sidebar, TopNav
-│   ├── lib/                           # API client (lib/api.ts), PDF generator
-│   └── pnpm-workspace.yaml            # pnpm 11 build script permissions
-│
-├── backend/                           # FastAPI Async REST Engine
-│   ├── app/
-│   │   ├── api/                       # Modular routers (auth, super_admin, payroll, etc.)
-│   │   ├── core/                      # Security (PyJWT/bcrypt), RBAC permissions
-│   │   ├── models/                    # SQLAlchemy 2.0 Async declarative models
-│   │   ├── schemas/                   # Pydantic v2 schemas with validation aliases
-│   │   ├── services/                  # Dynamic payroll formulas, email delivery
-│   │   ├── config.py                  # Pydantic Settings environment configuration
-│   │   ├── database.py                # Async database engine & session factory
-│   │   ├── main.py                    # FastAPI application & startup auto-seeder
-│   │   └── seed.py                    # Database seeder with 11 demo personas
-│   ├── alembic/                       # Schema migration versions
-│   ├── scripts/
-│   │   └── e2e_real_data_flow.py      # 7-stage automated real-data verification
-│   └── Dockerfile                     # Production container with dynamic PORT binding
-│
-└── docs/                              # Comprehensive technical specifications
-```
-
----
-
-## 📊 Dynamic Statutory Payroll Formula
-
-Dayflow implements standard Indian statutory payroll formulas:
-
-$$\text{Gross Wage (CTC)} = \text{Basic} + \text{HRA} + \text{Standard} + \text{Bonus} + \text{LTA} + \text{Fixed Allowance}$$
-
-$$\text{Basic Salary} = 50\% \times \text{CTC}$$
-
-$$\text{HRA} = 50\% \times \text{Basic} = 25\% \times \text{CTC}$$
-
-$$\text{Standard Allowance} = \min(₹4,166.67, \text{CTC} - \text{Basic} - \text{HRA})$$
-
-$$\text{Provident Fund (PF)} = 12\% \times \text{Basic}$$
-
-$$\text{Professional Tax (PT)} = ₹200.00/\text{month}$$
-
-$$\text{Net Take-Home Pay} = \text{Gross Wage} - \text{PF} - \text{PT}$$
-
----
-
-## 🚀 Quickstart & Local Setup
-
-### 1. Prerequisites
-- **Node.js 20+** & **pnpm 10+** (or 11+)
-- **Python 3.12+** & **`uv`** package manager
-
-### 2. Backend Setup
 ```bash
+git clone https://github.com/Harsha-code-per/rostra.git && cd rostra
+
+# API  -> http://localhost:8000  (interactive docs at /docs in development)
 cd backend
-
-# Install dependencies with uv
-uv sync
-
-# Configure environment
 cp .env.example .env
+uv sync
+uv run uvicorn app.main:app --reload
 
-# Run database migrations
-uv run alembic upgrade head
-
-# Seed 11 demo personas
-uv run python -m app.seed
-
-# Launch FastAPI server
-uv run uvicorn app.main:app --reload --port 8000
-```
-- Interactive Swagger Docs: `http://localhost:8000/docs`
-
-### 3. Frontend Setup
-```bash
-cd frontend
-
-# Install dependencies
-pnpm install
-
-# Configure environment
+# Web  -> http://localhost:3000
+cd ../frontend
 cp .env.example .env.local
-
-# Launch Next.js Turbopack dev server
+pnpm install
 pnpm dev
 ```
-- Access Frontend: `http://localhost:3000`
 
----
+In development the API creates tables and seeds a demo company on startup:
 
-## 🧪 Automated Test Suite & Verification
+| Role | Email | Password |
+|---|---|---|
+| Company admin | `admin@demo.example.com` | `password123` |
+| HR | `sarah.hr@demo.example.com` | `password123` |
+| Employee | `alex.rivera@demo.example.com` | `password123` |
+| Platform owner (`/platform-admin/login`) | `owner@demo.example.com` | `RostraPlatform#2026` |
 
-Dayflow includes an automated test suite verifying business logic, dynamic payroll formulas, and tenant isolation:
+These exist only when `ENVIRONMENT` is not `production`.
 
-### Run Backend Tests (35/35 Green):
+### Tests
+
 ```bash
-cd backend
-uv run pytest
+cd backend  && uv run ruff check . && uv run pytest -q
+cd frontend && pnpm lint && pnpm typecheck && pnpm build
+cd frontend && pnpm exec playwright install chromium && pnpm test:e2e   # boots API and web itself
 ```
 
-### Run 7-Stage Real-Data SaaS Lifecycle Test:
-```bash
-cd backend
-uv run python scripts/e2e_real_data_flow.py
+## Configuration
+
+Backend variables (see [`backend/.env.example`](backend/.env.example)):
+
+| Variable | Purpose |
+|---|---|
+| `ENVIRONMENT` | `production` enables the safety checks above |
+| `DATABASE_URL` | Postgres URL (Neon and Render style URLs work as pasted), or SQLite for quick tests |
+| `JWT_SECRET_KEY` | 32+ random characters; required in production |
+| `CORS_ORIGINS`, `APP_BASE_URL` | The web app origin |
+| `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD` | Creates the first platform owner once, if none exists |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Optional email delivery |
+
+Frontend: `NEXT_PUBLIC_API_URL` (including `/api/v1`) and `NEXT_PUBLIC_SITE_URL`.
+
+## API at a glance
+
+All routes live under `/api/v1`. Every route except sign-in, password reset and the public inquiry form requires a bearer token.
+
+| Area | Routes |
+|---|---|
+| Auth | `POST /auth/login`, `/auth/change-password`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/register`, `GET /auth/me` |
+| Employees | `GET /employees`, `GET/PUT /employees/{id}`, `GET /employees/me` |
+| Attendance | `POST /attendance/check-in`, `/attendance/check-out`, `GET /attendance/me`, `GET /attendance?date=`, `PUT /attendance/override` |
+| Leave | `POST /leaves`, `GET /leaves`, `GET /leaves/me`, `PATCH /leaves/{id}/approve`, `/reject` |
+| Payroll | `GET /payroll/me`, `GET /payroll/{id}?month=&year=`, `PUT /payroll/{id}/salary` |
+| Analytics | `GET /analytics/dashboard` |
+| Platform | `GET/POST /super-admin/companies`, `PATCH /super-admin/companies/{id}/status`, `GET /super-admin/inquiries` |
+| Public | `POST /inquiries`, `GET /health` |
+
+## Payroll rules
+
+For a monthly gross wage `W`:
+
+| Component | Rule |
+|---|---|
+| Basic | 50% of `W` |
+| HRA | 50% of Basic |
+| Performance bonus, LTA | 8.33% of Basic each |
+| Standard allowance | Up to ₹4,167, reduced for very low wages so components always sum to `W` |
+| Fixed allowance | The balancing amount |
+| Provident fund | 12% of Basic |
+| Professional tax | ₹200 flat |
+| Net pay | Gross minus deductions, prorated by payable days (present days plus approved paid leave) |
+
+State-specific professional tax slabs are not modelled yet (see the roadmap).
+
+## Deployment
+
+Rostra runs on free tiers today: Vercel for the web app, Render for the API and Neon for Postgres. [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) has the step-by-step setup, the environment variables, and the limits of each free tier you should know before taking customers.
+
+## Roadmap
+
+Status of the product, not a promise of dates.
+
+**Shipped**
+- Multi-tenant workspaces, four roles, platform console
+- Attendance, leave, payroll with Indian statutory components, payslip PDFs, CSV export
+- Security hardening, rate limiting, forgot and reset password
+- Accessible, responsive web app with end-to-end and accessibility tests in CI
+
+**Next**
+- Billing and plans (the data model already carries a plan and an employee limit)
+- Verified sending domain for email, so invitations and resets can be delivered
+- State-wise professional tax, TDS and Form 16 support
+- Audit log for sensitive changes (wage, role, status)
+- Shift schedules, holidays and approval chains
+- Move the web app to a host that permits commercial use on its free tier, and a custom domain
+
+## Repository layout
+
+```
+backend/
+  app/api         HTTP routes             app/services   business logic
+  app/models      SQLAlchemy models       app/core       auth, permissions, rate limits
+  alembic         migrations (head 0006)  tests          pytest suite
+frontend/
+  app             pages (App Router)      lib/api.ts     the only module that calls the API
+  components      UI and landing scene    e2e            Playwright + axe tests
+docs/             deployment guide, screenshots
+.github/          CI workflow
 ```
 
-### Run Frontend Production Build (22/22 Routes):
-```bash
-cd frontend
-pnpm build
-```
+## Authors
 
----
+Rostra is designed and built by **Harshavardhan K** and **Cholan Kinnera**.
 
-## 🛡️ Security, Secrets & Compliance
+## License
 
-- **Zero Hardcoded Secrets**: All JWT secrets, Resend API keys, and database credentials are strictly injected via environment variables.
-- **Role-Based Access Control (RBAC)**: Enforced via FastAPI dependency injection (`require_roles(["SUPER_ADMIN", "ADMIN", "HR", "EMPLOYEE"])`).
-- **Tenant Data Isolation**: Every database query is scoped by `company_id` to guarantee zero data leakage between tenants.
-- **CORS Protection**: Restricted to authorized production origins and local development domains.
-
----
-
-<div align="center">
-
-**Dayflow HRMS** • Built for the **Odoo × NMIT Hackathon 2026**
-
-</div>
+Proprietary. Copyright (c) 2026 Harshavardhan K and Cholan Kinnera. All rights reserved. See [LICENSE](LICENSE). The source is visible for evaluation; it may not be copied, redistributed or hosted for third parties without written permission.

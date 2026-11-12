@@ -1,185 +1,98 @@
 "use client";
 
 import React, { useState } from "react";
-import { Employee } from "@/lib/mock-data";
-import { DayflowApiClient } from "@/lib/api";
-import { calculateSalaryStructure, SalaryComponents } from "@/lib/salary-calculator";
-import { formatCurrency } from "@/lib/utils";
-import { X, Save, Calculator } from "lucide-react";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
+import { Save } from "lucide-react";
+import type { Employee } from "@/lib/types";
+import { RostraApi } from "@/lib/api";
+import { calculateSalaryStructure } from "@/lib/salary-calculator";
+import { formatCurrency } from "@/lib/utils";
+import { Dialog } from "@/components/shared/Dialog";
+import { inputClass } from "@/components/shared/AuthShell";
 
-interface SalaryStructureEditorProps {
+interface Props {
   employee: Employee | null;
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function SalaryStructureEditor({ employee, isOpen, onClose, onSaved }: SalaryStructureEditorProps) {
-  const [wageInput, setWageInput] = useState<number>(employee?.wage || 60000);
-  const [isSaving, setIsSaving] = useState(false);
+const Row = ({ label, value, negative }: { label: string; value: number; negative?: boolean }) => (
+  <div className="flex justify-between">
+    <dt className="text-slate-700">{label}</dt>
+    <dd className={`font-mono font-bold ${negative ? "text-rose-700" : "text-slate-900"}`}>{negative ? "−" : ""}{formatCurrency(value)}</dd>
+  </div>
+);
 
-  if (!isOpen || !employee) return null;
+function Editor({ employee, onClose, onSaved }: { employee: Employee; onClose: () => void; onSaved: () => void }) {
+  const [wage, setWage] = useState(String(employee.wage || ""));
+  const [busy, setBusy] = useState(false);
+  const value = Number(wage) || 0;
+  const b = calculateSalaryStructure(value);
 
-  const currentWage = Number(wageInput) || 0;
-  const breakdown: SalaryComponents = calculateSalaryStructure(currentWage);
-
-  const handleSave = async (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
+    setBusy(true);
     try {
-      await DayflowApiClient.updateEmployeeWage(employee.employeeId, currentWage);
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.7 } });
-      toast.success(`Wage updated for ${employee.firstName} ${employee.lastName}!`, {
-        description: `New monthly base wage: ${formatCurrency(currentWage)}. All dependent components recalculated.`,
-      });
+      await RostraApi.updateEmployeeWage(employee.employeeId, value);
+      toast.success(`Wage updated for ${employee.firstName} ${employee.lastName}`);
       onSaved();
       onClose();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to update salary");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update the salary");
     } finally {
-      setIsSaving(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-2xl glass-panel rounded-3xl border border-cyan-300 shadow-2xl p-6 sm:p-7 relative max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5 pb-3 border-b border-slate-100">
-          <div className="p-2.5 rounded-2xl bg-cyan-50 text-cyan-600 border border-cyan-200 shadow-xs">
-            <Calculator className="w-5 h-5" />
+    <form onSubmit={save} className="flex flex-col gap-4">
+      <div>
+        <label htmlFor="wage" className="block text-sm font-semibold text-slate-800 mb-1.5">Monthly gross wage (₹)</label>
+        <input id="wage" type="number" required min={1} max={100000000} step={1} value={wage} onChange={(e) => setWage(e.target.value)} aria-describedby="wage-hint" className={`${inputClass} font-mono text-lg font-bold`} />
+        <p id="wage-hint" className="text-xs text-slate-600 mt-1">Every component below recalculates from this number.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm" aria-live="polite">
+        <div className="p-4 rounded-2xl border border-slate-200">
+          <h3 className="font-bold text-cyan-900 mb-2 pb-1 border-b border-slate-100">Earnings</h3>
+          <dl className="flex flex-col gap-2">
+            <Row label="Basic (50%)" value={b.basic} />
+            <Row label="HRA (50% of basic)" value={b.hra} />
+            <Row label="Standard allowance" value={b.standardAllowance} />
+            <Row label="Performance bonus" value={b.performanceBonus} />
+            <Row label="LTA" value={b.lta} />
+            <Row label="Fixed allowance" value={b.fixedAllowance} />
+          </dl>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="p-4 rounded-2xl border border-slate-200">
+            <h3 className="font-bold text-rose-800 mb-2 pb-1 border-b border-slate-100">Deductions</h3>
+            <dl className="flex flex-col gap-2">
+              <Row label="Provident fund (12%)" value={b.pf} negative />
+              <Row label="Professional tax" value={b.professionalTax} negative />
+            </dl>
           </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Dynamic Salary Structure Engine</h3>
-            <p className="text-xs text-slate-500">
-              Editing: <span className="text-cyan-800 font-bold">{employee.firstName} {employee.lastName}</span> ({employee.employeeId} · {employee.designation})
-            </p>
+          <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200">
+            <p className="text-xs font-bold text-cyan-900">Net take-home</p>
+            <p className="text-2xl font-extrabold font-mono text-cyan-950">{formatCurrency(b.netSalary)}</p>
           </div>
         </div>
-
-        <form onSubmit={handleSave} className="flex flex-col gap-4">
-          {/* Wage Input Bar */}
-          <div className="p-5 rounded-2xl bg-cyan-50/80 border border-cyan-200">
-            <label className="block text-xs font-bold text-cyan-900 mb-1.5 flex items-center justify-between">
-              <span>MONTHLY BASE WAGE (TOTAL GROSS CTC)</span>
-              <span className="text-[11px] text-slate-500 font-medium">Auto-recalculates all statutory components</span>
-            </label>
-            <div className="relative flex items-center mt-1">
-              <span className="absolute left-3.5 text-slate-400 font-bold text-base">₹</span>
-              <input
-                type="number"
-                step="500"
-                value={wageInput}
-                onChange={(e) => setWageInput(Number(e.target.value))}
-                className="w-full pl-9 pr-4 py-3 rounded-xl bg-white border border-cyan-300 text-lg font-bold font-mono text-cyan-900 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-xs"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Dynamic Breakdown Display */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            {/* Earnings Box */}
-            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-              <h4 className="font-bold text-cyan-800 text-xs mb-3 pb-1.5 border-b border-slate-100 flex items-center justify-between">
-                <span>EARNINGS COMPONENTS</span>
-                <span className="text-[10px] text-slate-400">Formula Rule</span>
-              </h4>
-
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Basic Salary</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.basic)} <span className="text-[10px] text-slate-400">(50%)</span></span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">House Rent Allowance (HRA)</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.hra)} <span className="text-[10px] text-slate-400">(50% Basic)</span></span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Standard Allowance</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.standardAllowance)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Performance Bonus</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.performanceBonus)} <span className="text-[10px] text-slate-400">(8.33%)</span></span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-600">Leave Travel Allowance (LTA)</span>
-                  <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.lta)} <span className="text-[10px] text-slate-400">(8.33%)</span></span>
-                </div>
-                <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
-                  <span className="text-cyan-800 font-bold">Fixed Balancing Allowance</span>
-                  <span className="font-mono font-bold text-cyan-700">{formatCurrency(breakdown.fixedAllowance)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Deductions & Net Pay */}
-            <div className="flex flex-col gap-3">
-              {/* Deductions Box */}
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <h4 className="font-bold text-rose-700 text-xs mb-3 pb-1.5 border-b border-slate-100 flex items-center justify-between">
-                  <span>DEDUCTIONS</span>
-                  <span className="text-[10px] text-slate-400">Statutory</span>
-                </h4>
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Provident Fund (PF)</span>
-                    <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.pf)} <span className="text-[10px] text-slate-400">(12% Basic)</span></span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Professional Tax (PT)</span>
-                    <span className="font-mono font-bold text-slate-900">{formatCurrency(breakdown.professionalTax)}</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 font-bold">
-                    <span className="text-rose-700">Total Deductions</span>
-                    <span className="font-mono text-rose-600">-{formatCurrency(breakdown.totalDeductions)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Net Payout Banner */}
-              <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200 shadow-xs">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-cyan-800 block mb-0.5">ESTIMATED NET TAKE-HOME PAY</span>
-                <div className="text-2xl font-extrabold font-mono text-cyan-800">
-                  {formatCurrency(breakdown.netSalary)}
-                </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Gross: {formatCurrency(breakdown.grossSalary)} · Minus {formatCurrency(breakdown.totalDeductions)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 pt-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-500/25 transition-all disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{isSaving ? "Saving..." : "Save & Apply Salary Structure"}</span>
-            </button>
-          </div>
-        </form>
       </div>
-    </div>
+      <div className="flex gap-3 pt-1">
+        <button type="button" onClick={onClose} className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-sm font-bold focus-visible:outline-2 focus-visible:outline-cyan-600">Cancel</button>
+        <button type="submit" disabled={busy || value <= 0} className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">
+          <Save className="w-4 h-4" aria-hidden="true" /> {busy ? "Saving…" : "Save salary"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function SalaryStructureEditor({ employee, isOpen, onClose, onSaved }: Props) {
+  if (!isOpen || !employee) return null;
+  return (
+    <Dialog title="Salary structure" description={`${employee.firstName} ${employee.lastName} · ${employee.employeeId} · ${employee.designation}`} onClose={onClose} className="max-w-2xl">
+      <Editor employee={employee} onClose={onClose} onSaved={onSaved} />
+    </Dialog>
   );
 }

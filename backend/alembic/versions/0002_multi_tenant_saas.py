@@ -6,7 +6,6 @@ Create Date: 2026-08-22 13:31:00.000000
 
 """
 from typing import Sequence, Union
-from datetime import datetime, timezone
 from alembic import op
 import sqlalchemy as sa
 

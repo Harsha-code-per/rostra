@@ -15,7 +15,7 @@ async def test_health_check(client: AsyncClient):
 async def test_login_and_auth_flow(client: AsyncClient):
     # 1. Login as Alex Rivera (Employee)
     res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     assert res.status_code == 200
@@ -31,12 +31,12 @@ async def test_login_and_auth_flow(client: AsyncClient):
     me_res = await client.get("/api/v1/employees/me", headers=headers)
     assert me_res.status_code == 200
     me_data = me_res.json()
-    assert me_data["email"] == "alex.rivera@dayflow.io"
+    assert me_data["email"] == "alex.rivera@demo.example.com"
     assert me_data["department"] == "Engineering"
 
     # 3. Login as Sarah (HR)
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     assert hr_res.status_code == 200
@@ -45,7 +45,7 @@ async def test_login_and_auth_flow(client: AsyncClient):
 
     # 4. Invalid Password Rejection
     bad_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "wrongpassword",
     })
     assert bad_res.status_code == 401
@@ -55,7 +55,7 @@ async def test_login_and_auth_flow(client: AsyncClient):
 async def test_payroll_dynamic_recalculation_endpoint(client: AsyncClient):
     # Login as Sarah (HR)
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -83,7 +83,7 @@ async def test_payroll_dynamic_recalculation_endpoint(client: AsyncClient):
 async def test_leaves_workflow_and_approval(client: AsyncClient):
     # Alex (Employee) Login
     alex_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     alex_token = alex_res.json()["access_token"]
@@ -108,7 +108,7 @@ async def test_leaves_workflow_and_approval(client: AsyncClient):
 
     # HR Login
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -130,7 +130,7 @@ async def test_leaves_workflow_and_approval(client: AsyncClient):
 async def test_executive_analytics_dashboard(client: AsyncClient):
     # HR Login
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -151,7 +151,7 @@ async def test_executive_analytics_dashboard(client: AsyncClient):
 async def test_registration_rbac_restrictions(client: AsyncClient):
     new_user_payload = {
         "employee_id": "EMP-999",
-        "email": "test.newbie@dayflow.io",
+        "email": "test.newbie@demo.example.com",
         "password": "StrongPassword123!",
         "first_name": "Test",
         "last_name": "Newbie",
@@ -166,7 +166,7 @@ async def test_registration_rbac_restrictions(client: AsyncClient):
 
     # 2. EMPLOYEE trying to register a new user -> 403
     alex_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     alex_token = alex_res.json()["access_token"]
@@ -177,7 +177,7 @@ async def test_registration_rbac_restrictions(client: AsyncClient):
 
     # 3. HR registering a new user -> 201
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -192,7 +192,7 @@ async def test_registration_rbac_restrictions(client: AsyncClient):
 async def test_payroll_rbac_and_ownership(client: AsyncClient):
     # Alex (Employee EMP-003)
     alex_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     alex_token = alex_res.json()["access_token"]
@@ -200,7 +200,7 @@ async def test_payroll_rbac_and_ownership(client: AsyncClient):
 
     # Sarah (HR EMP-002)
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -233,7 +233,7 @@ async def test_payroll_rbac_and_ownership(client: AsyncClient):
 async def test_leave_approval_rbac_restriction(client: AsyncClient):
     # Alex (Employee)
     alex_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     alex_token = alex_res.json()["access_token"]
@@ -252,7 +252,7 @@ async def test_leave_approval_rbac_restriction(client: AsyncClient):
 async def test_seed_attendance_timestamps_date_consistency(client: AsyncClient):
     # Sarah (HR) Login
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -278,7 +278,7 @@ async def test_seed_attendance_timestamps_date_consistency(client: AsyncClient):
 async def test_real_runtime_attendance_check_in_out(client: AsyncClient):
     # Login as David Chen (EMP-005)
     david_res = await client.post("/api/v1/auth/login", json={
-        "email": "david.chen@dayflow.io",
+        "email": "david.chen@demo.example.com",
         "password": "password123",
     })
     david_token = david_res.json()["access_token"]
@@ -320,7 +320,7 @@ async def test_real_runtime_attendance_check_in_out(client: AsyncClient):
 async def test_employee_wage_privacy_and_analytics_rbac(client: AsyncClient):
     # Alex (Employee) Login
     alex_res = await client.post("/api/v1/auth/login", json={
-        "email": "alex.rivera@dayflow.io",
+        "email": "alex.rivera@demo.example.com",
         "password": "password123",
     })
     alex_token = alex_res.json()["access_token"]
@@ -328,7 +328,7 @@ async def test_employee_wage_privacy_and_analytics_rbac(client: AsyncClient):
 
     # Sarah (HR) Login
     hr_res = await client.post("/api/v1/auth/login", json={
-        "email": "sarah.hr@dayflow.io",
+        "email": "sarah.hr@demo.example.com",
         "password": "password123",
     })
     hr_token = hr_res.json()["access_token"]
@@ -364,14 +364,14 @@ async def test_forgot_password_flow(client: AsyncClient):
     with patch("resend.Emails.send") as mock_send:
         mock_send.return_value = {"id": "msg_forgot_123"}
         res = await client.post("/api/v1/auth/forgot-password", json={
-            "email": "alex.rivera@dayflow.io"
+            "email": "alex.rivera@demo.example.com"
         })
         assert res.status_code == 200
         assert "dispatched" in res.json()["message"]
 
         # Test non-existent email still returns 200 to prevent enumeration
         res_fake = await client.post("/api/v1/auth/forgot-password", json={
-            "email": "nonexistent@dayflow.io"
+            "email": "nonexistent@demo.example.com"
         })
         assert res_fake.status_code == 200
         assert "dispatched" in res_fake.json()["message"]

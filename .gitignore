@@ -45,3 +45,7 @@ yarn-error.log*
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Test output
+test-results/
+playwright-report/

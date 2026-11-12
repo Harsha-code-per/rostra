@@ -1,22 +1,29 @@
 import json
 from typing import List, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Dayflow HRMS Backend API"
+    PROJECT_NAME: str = "Rostra API"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
 
     # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./dayflow.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./rostra.db"
 
     # JWT Authentication (Loaded via Environment Variable JWT_SECRET_KEY)
     JWT_SECRET_KEY: str = "dev-insecure-secret-key-change-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
+    RESET_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # First platform owner, created at startup if no SUPER_ADMIN exists (production bootstrap)
+    SUPER_ADMIN_EMAIL: str = ""
+    SUPER_ADMIN_PASSWORD: str = ""
+
+    RATE_LIMIT_ENABLED: bool = True
 
     # Server & Port
     PORT: int = 8000
@@ -40,6 +47,20 @@ class Settings(BaseSettings):
         elif isinstance(v, str) and v.startswith("["):
             return json.loads(v)
         return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.lower() == "production"
+
+    @model_validator(mode="after")
+    def reject_insecure_production(self) -> "Settings":
+        if self.is_production and (
+            self.JWT_SECRET_KEY.startswith("dev-insecure") or len(self.JWT_SECRET_KEY) < 32
+        ):
+            raise ValueError("JWT_SECRET_KEY must be set to a random value of 32+ characters in production")
+        if self.is_production and "*" in (self.CORS_ORIGINS if isinstance(self.CORS_ORIGINS, list) else [self.CORS_ORIGINS]):
+            raise ValueError("CORS_ORIGINS must not contain '*' in production")
+        return self
 
     model_config = SettingsConfigDict(
         env_file=".env",

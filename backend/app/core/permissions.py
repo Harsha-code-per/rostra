@@ -14,6 +14,10 @@ from app.models.employee import Employee
 security_scheme = HTTPBearer(auto_error=False)
 
 
+def role_value(role) -> str:
+    return role.value if isinstance(role, UserRole) else str(role)
+
+
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     db: AsyncSession = Depends(get_db),
@@ -67,6 +71,12 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if user.company and (not user.company.is_active or user.company.status != "ACTIVE"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This workspace is suspended. Contact your administrator or Rostra support.",
+        )
+
     token_iat = payload.get("iat")
     if user.password_changed_at and token_iat is not None:
         pwd_dt = user.password_changed_at
@@ -87,7 +97,7 @@ async def get_current_user(
 
 def require_roles(allowed_roles: List[str]):
     async def role_checker(current_user: Profile = Depends(get_current_user)) -> Profile:
-        user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
+        user_role = role_value(current_user.role)
         if user_role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

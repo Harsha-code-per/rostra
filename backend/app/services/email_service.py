@@ -6,7 +6,7 @@ from app.config import settings
 
 import re
 
-logger = logging.getLogger("dayflow.email")
+logger = logging.getLogger("rostra.email")
 
 
 def _sanitize_msg(msg: Any) -> str:
@@ -34,7 +34,7 @@ class EmailService:
         """
         Sends a secure onboarding invitation email via Resend with a secure one-time activation link.
         """
-        subject = f"Welcome to {company_name} on Dayflow HRMS — Activate Your Account"
+        subject = f"Welcome to {company_name} on Rostra — Activate Your Account"
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -58,13 +58,13 @@ class EmailService:
         <body>
           <div class="container">
             <div class="header">
-              <h1>Dayflow HRMS</h1>
+              <h1>Rostra</h1>
             </div>
             <div class="content">
               <div class="badge">Role: {role}</div>
               <div class="greeting">Hello {recipient_name},</div>
               <p class="message">
-                You have been invited to join <strong>{company_name}</strong> on Dayflow HRMS.
+                You have been invited to join <strong>{company_name}</strong> on Rostra.
                 Your account is ready for activation. Please click the button below to set your permanent password and access your workspace.
               </p>
               <div class="cta-container">
@@ -75,7 +75,7 @@ class EmailService:
               </div>
             </div>
             <div class="footer">
-              &copy; 2026 Dayflow Technologies Inc. &bull; Enterprise HRMS Platform
+              &copy; 2026 Rostra Demo Co. &bull; Enterprise HRMS Platform
             </div>
           </div>
         </body>
@@ -110,7 +110,7 @@ class EmailService:
         """
         Sends a secure password reset email via Resend.
         """
-        subject = "Reset Your Password — Dayflow HRMS"
+        subject = "Reset Your Password — Rostra"
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -130,18 +130,18 @@ class EmailService:
         <body>
           <div class="container">
             <div class="header">
-              <h1>Dayflow HRMS</h1>
+              <h1>Rostra</h1>
             </div>
             <div class="content">
               <p>Hello {recipient_name},</p>
-              <p>We received a request to reset your password for Dayflow HRMS. Click the button below to choose a new password:</p>
+              <p>We received a request to reset your password for Rostra. Click the button below to choose a new password:</p>
               <div class="cta-container">
                 <a href="{reset_link}" class="cta-button" target="_blank">Reset Password</a>
               </div>
               <p style="font-size: 12px; color: #94a3b8;">If you did not request a password reset, you can safely ignore this email.</p>
             </div>
             <div class="footer">
-              &copy; 2026 Dayflow Technologies Inc.
+              &copy; 2026 Rostra Demo Co.
             </div>
           </div>
         </body>

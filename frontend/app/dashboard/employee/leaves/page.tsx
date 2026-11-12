@@ -1,192 +1,110 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { DayflowApiClient } from "@/lib/api";
-import { LeaveBalance, LeaveRequest } from "@/lib/mock-data";
+import React, { useCallback, useEffect, useState } from "react";
+import { Plus } from "lucide-react";
+import { RostraApi } from "@/lib/api";
+import type { LeaveBalance, LeaveRequest } from "@/lib/types";
 import { ApplyLeaveModal } from "@/components/leaves/ApplyLeaveModal";
 import { formatDate } from "@/lib/utils";
-import { Palmtree, Plus, Clock, CheckCircle2, XCircle, Calendar, Sparkles } from "lucide-react";
+
+const TYPES = [
+  { key: "PAID", label: "Paid leave", bar: "bg-cyan-700" },
+  { key: "SICK", label: "Sick leave", bar: "bg-emerald-700" },
+  { key: "CASUAL", label: "Casual leave", bar: "bg-amber-600" },
+] as const;
+
+const STATUS_STYLE: Record<string, string> = {
+  APPROVED: "bg-emerald-50 text-emerald-800 border-emerald-300",
+  PENDING: "bg-amber-50 text-amber-900 border-amber-300",
+  REJECTED: "bg-rose-50 text-rose-800 border-rose-300",
+};
 
 export default function EmployeeLeavesPage() {
-  const { user } = useAuth();
-  const employeeId = user?.employee.id || "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3";
-
   const [balances, setBalances] = useState<Record<string, LeaveBalance>>({});
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [requests, setRequests] = useState<LeaveRequest[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
-  const refresh = () => {
-    DayflowApiClient.getLeaveBalances(employeeId).then(setBalances);
-    DayflowApiClient.getLeaveRequests(employeeId).then(setRequests);
-  };
+  const refresh = useCallback(async () => {
+    try {
+      const [b, r] = await Promise.all([RostraApi.getLeaveBalances(), RostraApi.getLeaveRequests()]);
+      setBalances(b);
+      setRequests(r);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load leave data");
+    }
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data load
     refresh();
-  }, [employeeId]);
+  }, [refresh]);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in">
-      {/* Header */}
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900">Leave Quota & Requests</h1>
-          <p className="text-xs text-slate-500">
-            Track annual leave allowances, submit time-off applications, and monitor approvals.
-          </p>
+          <h1 className="text-xl sm:text-2xl font-bold font-heading text-slate-900">Leave</h1>
+          <p className="text-sm text-slate-600">Your balances and requests.</p>
         </div>
-
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-cyan-500/20 transition-all hover:scale-105"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Apply for Time Off</span>
+        <button onClick={() => setOpen(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600">
+          <Plus className="w-4 h-4" aria-hidden="true" /> Apply for time off
         </button>
       </div>
 
-      {/* Quota Balance Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-        {/* Paid Annual Leave */}
-        <div className="p-5 rounded-2xl glass-card flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="font-bold uppercase tracking-wider text-[10px]">Paid Leave</span>
-            <span className="text-[10px] font-bold text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200">
-              Annual
-            </span>
-          </div>
-          <div className="my-2">
-            <span className="text-3xl font-extrabold font-mono text-cyan-700">
-              {balances.PAID?.remaining ?? 14}
-            </span>
-            <span className="text-slate-500 ml-1 text-xs">/ {balances.PAID?.allocated ?? 18} Days</span>
-            <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden border border-slate-200">
-              <div
-                className="bg-cyan-600 h-full rounded-full transition-all"
-                style={{
-                  width: `${((balances.PAID?.remaining ?? 14) / (balances.PAID?.allocated ?? 18)) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-          <span className="text-[10px] text-slate-400">4 days used this year</span>
-        </div>
+      {error && <p role="alert" className="p-4 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-800">{error}</p>}
 
-        {/* Sick Leave */}
-        <div className="p-5 rounded-2xl glass-card flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="font-bold uppercase tracking-wider text-[10px]">Sick Leave</span>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              Medical
-            </span>
-          </div>
-          <div className="my-2">
-            <span className="text-3xl font-extrabold font-mono text-emerald-600">
-              {balances.SICK?.remaining ?? 10}
-            </span>
-            <span className="text-slate-500 ml-1 text-xs">/ {balances.SICK?.allocated ?? 12} Days</span>
-            <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden border border-slate-200">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all"
-                style={{
-                  width: `${((balances.SICK?.remaining ?? 10) / (balances.SICK?.allocated ?? 12)) * 100}%`,
-                }}
-              />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {TYPES.map(({ key, label, bar }) => {
+          const b = balances[key];
+          const pct = b && b.allocated > 0 ? Math.min(100, (b.remaining / b.allocated) * 100) : 0;
+          return (
+            <div key={key} className="p-5 rounded-2xl bg-white border border-slate-200">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-600">{label}</p>
+              <p className="my-1 text-3xl font-extrabold font-mono text-slate-900">
+                {b ? b.remaining : "—"}<span className="text-sm font-normal text-slate-600"> / {b ? b.allocated : "—"} days</span>
+              </p>
+              <div role="progressbar" aria-label={`${label} remaining`} aria-valuemin={0} aria-valuemax={b?.allocated ?? 0} aria-valuenow={b?.remaining ?? 0} className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className={`${bar} h-full rounded-full`} style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-slate-600">{b ? `${b.used} used` : ""}</p>
             </div>
-          </div>
-          <span className="text-[10px] text-slate-400">2 days requested</span>
-        </div>
-
-        {/* Casual Leave */}
-        <div className="p-5 rounded-2xl glass-card flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="font-bold uppercase tracking-wider text-[10px]">Casual Leave</span>
-            <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-              Personal
-            </span>
-          </div>
-          <div className="my-2">
-            <span className="text-3xl font-extrabold font-mono text-amber-600">
-              {balances.CASUAL?.remaining ?? 5}
-            </span>
-            <span className="text-slate-500 ml-1 text-xs">/ {balances.CASUAL?.allocated ?? 6} Days</span>
-            <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden border border-slate-200">
-              <div
-                className="bg-amber-500 h-full rounded-full transition-all"
-                style={{
-                  width: `${((balances.CASUAL?.remaining ?? 5) / (balances.CASUAL?.allocated ?? 6)) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
-          <span className="text-[10px] text-slate-400">1 day used this year</span>
-        </div>
-
-        {/* Unpaid Leave */}
-        <div className="p-5 rounded-2xl glass-card flex flex-col justify-between">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="font-bold uppercase tracking-wider text-[10px]">Unpaid Leave</span>
-            <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-              Loss of Pay
-            </span>
-          </div>
-          <div className="my-2">
-            <span className="text-3xl font-extrabold font-mono text-slate-800">
-              {balances.UNPAID?.used ?? 0}
-            </span>
-            <span className="text-slate-500 ml-1 text-xs">Days Used</span>
-            <div className="w-full bg-slate-100 h-2 rounded-full mt-2 overflow-hidden border border-slate-200">
-              <div className="bg-slate-400 h-full rounded-full" style={{ width: "0%" }} />
-            </div>
-          </div>
-          <span className="text-[10px] text-slate-400">No salary deduction applied</span>
-        </div>
+          );
+        })}
       </div>
 
-      {/* Leave Application History */}
-      <div className="glass-panel rounded-3xl p-6 border border-slate-200 shadow-sm overflow-x-auto">
-        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-          <Calendar className="w-4 h-4 text-cyan-600" /> Leave Application Requests & Status
-        </h3>
-
-        {requests.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            No leave requests submitted yet.
-          </div>
+      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm overflow-x-auto">
+        <h2 className="text-sm font-bold text-slate-900 mb-4 pb-3 border-b border-slate-100">Requests</h2>
+        {requests === null && !error ? (
+          <p role="status" className="text-sm text-slate-600">Loading…</p>
+        ) : requests && requests.length === 0 ? (
+          <p className="py-8 text-center text-sm text-slate-600">No leave requests yet.</p>
         ) : (
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Your leave requests</caption>
             <thead>
-              <tr className="border-b border-slate-100 text-slate-400">
-                <th className="pb-3 font-semibold">Leave Type</th>
-                <th className="pb-3 font-semibold">Start Date</th>
-                <th className="pb-3 font-semibold">End Date</th>
-                <th className="pb-3 font-semibold">Total Days</th>
-                <th className="pb-3 font-semibold">Reason</th>
-                <th className="pb-3 font-semibold">HR Comments</th>
-                <th className="pb-3 font-semibold text-right">Decision</th>
+              <tr className="border-b border-slate-100 text-slate-600">
+                <th scope="col" className="pb-3 font-semibold">Type</th>
+                <th scope="col" className="pb-3 font-semibold">From</th>
+                <th scope="col" className="pb-3 font-semibold">To</th>
+                <th scope="col" className="pb-3 font-semibold">Days</th>
+                <th scope="col" className="pb-3 font-semibold">Reason</th>
+                <th scope="col" className="pb-3 font-semibold">HR note</th>
+                <th scope="col" className="pb-3 font-semibold text-right">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {requests.map((req) => (
-                <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-3.5 font-bold text-slate-800">{req.leaveType} LEAVE</td>
-                  <td className="py-3.5 font-mono text-slate-600">{formatDate(req.startDate)}</td>
-                  <td className="py-3.5 font-mono text-slate-600">{formatDate(req.endDate)}</td>
-                  <td className="py-3.5 font-mono font-bold text-cyan-700">{req.totalDays} Days</td>
-                  <td className="py-3.5 text-slate-600 italic max-w-xs truncate">{req.reason}</td>
-                  <td className="py-3.5 text-slate-500">{req.hrComments || "—"}</td>
+              {requests?.map((r) => (
+                <tr key={r.id}>
+                  <td className="py-3.5 font-bold text-slate-800">{r.leaveType}</td>
+                  <td className="py-3.5 font-mono text-slate-700">{formatDate(r.startDate)}</td>
+                  <td className="py-3.5 font-mono text-slate-700">{formatDate(r.endDate)}</td>
+                  <td className="py-3.5 font-mono font-bold text-cyan-800">{r.totalDays}</td>
+                  <td className="py-3.5 text-slate-700 max-w-xs truncate">{r.reason}</td>
+                  <td className="py-3.5 text-slate-600">{r.hrComments || "—"}</td>
                   <td className="py-3.5 text-right">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        req.status === "APPROVED"
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : req.status === "PENDING"
-                          ? "bg-amber-50 text-amber-700 border border-amber-200"
-                          : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
-                    >
-                      {req.status}
-                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${STATUS_STYLE[r.status]}`}>{r.status}</span>
                   </td>
                 </tr>
               ))}
@@ -195,12 +113,7 @@ export default function EmployeeLeavesPage() {
         )}
       </div>
 
-      <ApplyLeaveModal
-        employeeId={employeeId}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onApplied={refresh}
-      />
+      <ApplyLeaveModal isOpen={open} onClose={() => setOpen(false)} onApplied={refresh} />
     </div>
   );
 }

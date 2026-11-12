@@ -1,4 +1,3 @@
-import pytest
 from app.services.payroll_service import calculate_salary_structure, calculate_payable_payout
 
 

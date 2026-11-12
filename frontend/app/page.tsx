@@ -1,533 +1,115 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ParticleScene } from "@/components/landing/ParticleScene";
-import { InteractiveWageDemo } from "@/components/landing/InteractiveWageDemo";
-import {
-  Clock,
-  Calculator,
-  Palmtree,
-  ArrowRight,
-  CheckCircle2,
-  ShieldCheck,
-  ChevronDown,
-  Sparkles,
-  Layers,
-  FileCheck2,
-  Lock,
-} from "lucide-react";
-import Lenis from "lenis";
-import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { SceneLoader } from "@/components/landing/SceneLoader";
+import { FillText } from "@/components/landing/FillText";
+import { Marquee } from "@/components/landing/Marquee";
+import { TodayPodium } from "@/components/landing/TodayPodium";
+import { CheckInDemo, LeaveDemo, PayslipDemo } from "@/components/landing/Widgets";
+
+const focus = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#3b3bf2]";
+const INK = "text-[#10113a]";
+const MUTED = "text-[#3a3b66]";
+
+/** One scroll act of the 3D film. The scene reads [data-act] to know which arrangement to morph into. */
+function Act({ id, title, children }: { id: string; title: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <section id={id} data-act className="flex min-h-svh items-end bg-gradient-to-t from-[#f4f5ff] via-[#f4f5ff]/90 to-transparent px-5 pb-16 pt-28 sm:px-10 lg:items-center lg:bg-gradient-to-r lg:from-[#f4f5ff] lg:from-35% lg:via-[#f4f5ff]/80 lg:via-47% lg:to-transparent lg:to-60% lg:px-16 lg:pb-0">
+      <div className="max-w-2xl">
+        <h2 className={`font-heading text-[clamp(2.5rem,5.2vw,4.8rem)] font-bold leading-[0.92] tracking-[-0.045em] ${INK}`}>{title}</h2>
+        {children}
+      </div>
+    </section>
+  );
+}
+const body = `mt-5 max-w-md text-lg leading-relaxed ${MUTED}`;
 
 export default function LandingPage() {
-  const [scrollProgress, setScrollProgress] = useState(0);
-
-  // Initialize Lenis Smooth Scrolling
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      orientation: "vertical",
-      gestureOrientation: "vertical",
-      smoothWheel: true,
-    });
-
-    function raf(time: number) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
-    const handleScroll = () => {
-      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const progress = totalScroll > 0 ? window.scrollY / totalScroll : 0;
-      setScrollProgress(progress);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      lenis.destroy();
-    };
-  }, []);
-
   return (
-    <div className="min-h-screen bg-[#fafafc] text-slate-900 selection:bg-cyan-500/20 selection:text-cyan-900 relative overflow-hidden flex flex-col font-sans">
-      {/* 3D WebGL Kinetic Wave Mesh Background */}
-      <ParticleScene scrollProgress={scrollProgress} />
+    <div className={INK}>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-semibold">Skip to content</a>
+      <SceneLoader />
+      <LandingNav />
 
-      {/* Pinned Independent Floating Corner Islands */}
-      <header className="fixed top-4 sm:top-6 left-4 sm:left-8 right-4 sm:right-8 z-50 pointer-events-none flex items-center justify-between">
-        {/* Left Floating Brand Pill */}
-        <Link
-          href="/"
-          className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:bg-white transition-all group"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt="Dayflow"
-            className="h-7 w-7 object-contain transition-transform group-hover:scale-105"
-          />
-          <span className="font-heading font-extrabold text-lg tracking-tight text-slate-900">
-            Dayflow
-          </span>
-        </Link>
-
-        {/* Right Floating Actions Pill */}
-        <div className="pointer-events-auto flex items-center gap-2 p-1.5 rounded-2xl bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-          <Link
-            href="/platform-admin/login"
-            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-cyan-800 bg-cyan-50/90 hover:bg-cyan-100 transition-colors border border-cyan-200/80"
-          >
-            Platform Admin
-          </Link>
-
-          <Link
-            href="/login"
-            className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-          >
-            Sign In
-          </Link>
-
-          <Link
-            href="/contact"
-            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-xs transition-all hover:scale-[1.02]"
-          >
-            Contact Sales
-          </Link>
-        </div>
-      </header>
-
-      {/* Main Content Area */}
-      <main className="flex-1 relative z-10">
-        {/* Full 100vh Viewport Hero Section */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 relative pt-20 pb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-5xl mx-auto flex flex-col items-center"
-          >
-            {/* Cinematic Main Headline */}
-            <h1 className="text-5xl sm:text-7xl lg:text-8xl font-extrabold font-heading text-slate-900 tracking-[-0.04em] leading-[1.03]">
-              Every workday, <br />
-              <span className="text-cyan-700">perfectly aligned.</span>
+      <main id="main" className="relative z-10">
+        {/* Hero: a big headline and the day's numbers as a podium. */}
+        <section className="grid min-h-svh gap-10 bg-[#f4f5ff] px-5 pb-14 pt-32 sm:px-10 lg:grid-cols-[1.25fr_0.75fr] lg:items-end lg:px-16">
+          <div>
+            <h1 className="rise font-heading text-[clamp(3.5rem,11.4vw,10.5rem)] font-bold leading-[0.84] tracking-[-0.045em] text-[#3b3bf2]">
+              Count everyone <span className={INK}>in.</span>
             </h1>
-
-            {/* Subtitle */}
-            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mt-7 font-normal leading-relaxed">
-              The next-generation Human Resource Management System engineered for real-time attendance velocity, conflict-free leave governance, and dynamic statutory payroll.
+            <p className={`rise mt-8 max-w-xl text-xl leading-relaxed ${MUTED}`} style={{ animationDelay: "0.15s" }}>
+              Attendance, leave and payroll for Indian teams. One workspace, one source of truth, and no more Monday spreadsheets.
             </p>
-
-            {/* Primary Action Buttons */}
-            <div className="flex flex-wrap items-center justify-center gap-4 mt-9">
-              <Link
-                href="/contact"
-                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm sm:text-base shadow-sm transition-all hover:scale-105 active:scale-95"
-              >
-                <span>Contact Sales & Pricing</span>
-                <ArrowRight className="w-4 h-4" />
+            <div className="rise mt-9 flex flex-wrap items-center gap-3" style={{ animationDelay: "0.25s" }}>
+              <Link href="/contact" className={`inline-flex items-center gap-2 rounded-full bg-[#10113a] px-7 py-4 text-base font-semibold text-white transition-colors hover:bg-[#3b3bf2] ${focus}`}>
+                Request a workspace <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-
-              <Link
-                href="/login"
-                className="flex items-center gap-2 px-8 py-4 rounded-2xl bg-white/80 hover:bg-white text-slate-800 font-semibold text-sm sm:text-base border border-white/80 shadow-xs backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-              >
-                <span>Sign In to Workspace</span>
-              </Link>
-            </div>
-          </motion.div>
-
-          {/* Ambient Floating Scroll Prompt */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-slate-400 pointer-events-none select-none"
-          >
-            <span className="text-[11px] font-medium tracking-wider uppercase">Scroll to explore</span>
-            <ChevronDown className="w-4 h-4 animate-bounce text-slate-400" />
-          </motion.div>
-        </section>
-
-        {/* Section 1: Enterprise Metrics (Frosted Glassmorphism Cards) */}
-        <section className="py-24 px-4 sm:px-6">
-          <div className="max-w-6xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center mb-12"
-            >
-              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-800 bg-cyan-50/80 px-3 py-1 rounded-full border border-cyan-200 backdrop-blur-md inline-block">
-                Enterprise Reliability
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold font-heading text-slate-900 mt-2">
-                Governing modern organizations with precision
-              </h2>
-            </motion.div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-              {[
-                { val: "<10ms", label: "Wage Recalculation", desc: "Instant dynamic engine" },
-                { val: "100%", label: "Statutory Compliance", desc: "PF (12%) & PT formulas", cyan: true },
-                { val: "0", label: "Scheduling Conflicts", desc: "Capacity guard engine" },
-                { val: "99.9%", label: "Attendance Accuracy", desc: "Biometric sync logging", emerald: true },
-              ].map((m, idx) => (
-                <motion.div
-                  key={m.label}
-                  initial={{ opacity: 0, y: 25 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-80px" }}
-                  transition={{ delay: idx * 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="p-7 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)] hover:bg-white/65 hover:border-cyan-300/60 transition-all duration-300"
-                >
-                  <span
-                    className={`text-3xl sm:text-4xl font-extrabold font-mono block ${
-                      m.cyan ? "text-cyan-700" : m.emerald ? "text-emerald-600" : "text-slate-900"
-                    }`}
-                  >
-                    {m.val}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-800 mt-1.5 block">
-                    {m.label}
-                  </span>
-                  <span className="text-[11px] text-slate-500 mt-0.5 block">{m.desc}</span>
-                </motion.div>
-              ))}
+              <a href="#film" className={`rounded-full border-[1.5px] border-[#10113a] px-7 py-4 text-base font-semibold transition-colors hover:bg-white ${focus}`}>See how it works</a>
             </div>
           </div>
+          <TodayPodium />
         </section>
 
-        {/* Section 2: Interactive Live Statutory Compensation Simulator */}
-        <section className="py-20 px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 35 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-6xl mx-auto"
-          >
-            <InteractiveWageDemo />
-          </motion.div>
+        <Marquee />
+
+        {/* The problem, said once, large. Words fill in as you scroll. */}
+        <section className="bg-[#10113a] px-5 py-32 sm:px-10 lg:px-16 lg:py-44">
+          <FillText className="mx-auto max-w-5xl font-heading text-[clamp(1.9rem,4.6vw,4.4rem)] font-bold leading-[1.08] tracking-[-0.035em] text-white">
+            Every HR team has the same Monday. A sheet for attendance, a chat thread for leave, a calculator for payroll. Rostra puts all three in one place, so the month closes itself.
+          </FillText>
         </section>
 
-        {/* Section 3: Core Pillars (Glassmorphism Cards) */}
-        <section className="py-24 px-4 sm:px-6">
-          <div className="max-w-6xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center mb-14"
-            >
-              <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-800 bg-cyan-50/80 px-3 py-1 rounded-full border border-cyan-200 backdrop-blur-md inline-block">
-                Architectural Foundation
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold font-heading text-slate-900 mt-2">
-                Built for speed, accuracy, and autonomy
-              </h2>
-            </motion.div>
+        {/* The film: the 3D scene shows through these transparent sections. */}
+        <div id="film">
+          <Act id="mess" title={<>Monday, <br />9:02 a.m.</>}>
+            <p className={body}>Forty requests, three spreadsheets and a payslip due Friday. This is what HR looks like without a system.</p>
+          </Act>
+          <Act id="order" title={<>One place <br />for all of it.</>}>
+            <p className={body}>Every check-in, leave request and payslip gets a single home. Nothing to chase and nothing to reconcile.</p>
+          </Act>
+          <Act id="attendance" title={<>Know who <br />is in.</>}>
+            <p className={body}>One-tap check-in and out, a company board for any date, and quick corrections when someone forgets to check in.</p>
+            <div className="mt-6"><CheckInDemo /></div>
+          </Act>
+          <Act id="leave" title={<>Decide in <br />two clicks.</>}>
+            <p className={body}>Requests arrive with balances attached. Approve once and attendance updates itself. A request can be decided only one time, so nothing is counted twice.</p>
+            <div className="mt-6"><LeaveDemo /></div>
+          </Act>
+          <Act id="payroll" title={<>Pay without <br />the maths.</>}>
+            <p className={body}>Basic, HRA, PF and professional tax come from the wage and the days actually worked. Rostra calculates and exports. It never moves your money.</p>
+            <div className="mt-6"><PayslipDemo /></div>
+          </Act>
+          <Act id="trust" title={<>Your people data <br />stays yours.</>}>
+            <ul className={`mt-6 flex max-w-md flex-col gap-4 ${MUTED}`}>
+              <li><strong className={INK}>Sealed workspaces.</strong> Every company is its own workspace, and we test that one can never see another.</li>
+              <li><strong className={INK}>Strict roles.</strong> Platform staff, admins, HR and employees each see only what they should. Nobody can promote themselves.</li>
+              <li><strong className={INK}>Careful with passwords.</strong> Hashed with bcrypt, rate-limited sign-in, and a password change signs out every other session.</li>
+              <li><strong className={INK}>A kill switch.</strong> Suspend a workspace and everyone in it is locked out at once.</li>
+            </ul>
+          </Act>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Pillar 1 */}
-              <motion.div
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: 0.1, duration: 0.6 }}
-                className="p-8 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)] flex flex-col justify-between hover:bg-white/65 hover:border-cyan-300/60 transition-all duration-300"
-              >
-                <div>
-                  <div className="w-11 h-11 rounded-2xl bg-white/70 text-cyan-700 flex items-center justify-center mb-6 border border-white/80 shadow-xs backdrop-blur-md">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">
-                    Live Attendance Pulse
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    Second-by-second session stopwatch with check-in timestamping, break tracking, and daily presence metrics with biometric synchronization.
-                  </p>
-                </div>
-
-                <div className="mt-8 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-600 font-mono">
-                  <span>08:34:12 Active</span>
-                  <span className="text-emerald-600 font-bold">Live Session</span>
-                </div>
-              </motion.div>
-
-              {/* Pillar 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-                className="p-8 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)] flex flex-col justify-between hover:bg-white/65 hover:border-cyan-300/60 transition-all duration-300"
-              >
-                <div>
-                  <div className="w-11 h-11 rounded-2xl bg-white/70 text-cyan-700 flex items-center justify-center mb-6 border border-white/80 shadow-xs backdrop-blur-md">
-                    <Palmtree className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">
-                    Conflict-Free Leaves
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    Automated schedule overlap detection prevents department understaffing with instant 1-click approvals and balance quota tracking.
-                  </p>
-                </div>
-
-                <div className="mt-8 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-600">
-                  <span>Capacity Health</span>
-                  <span className="text-cyan-800 font-bold">75% Available</span>
-                </div>
-              </motion.div>
-
-              {/* Pillar 3 */}
-              <motion.div
-                initial={{ opacity: 0, y: 25 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-                className="p-8 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)] flex flex-col justify-between hover:bg-white/65 hover:border-cyan-300/60 transition-all duration-300"
-              >
-                <div>
-                  <div className="w-11 h-11 rounded-2xl bg-white/70 text-cyan-700 flex items-center justify-center mb-6 border border-white/80 shadow-xs backdrop-blur-md">
-                    <Calculator className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">
-                    Dynamic Salary Engine
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                    Adjust base wage and all components dynamically recompute in real-time. Export high-resolution branded PDF payslips in one click.
-                  </p>
-                </div>
-
-                <div className="mt-8 pt-4 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-600">
-                  <span>PDF Generator</span>
-                  <span className="text-cyan-800 font-bold">Vector High-Res</span>
-                </div>
-              </motion.div>
-            </div>
+        {/* Close: one blue panel. */}
+        <section className="bg-[#f4f5ff] px-4 py-10 sm:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-8 rounded-[2.5rem] bg-[#3b3bf2] px-7 py-16 text-white sm:px-14 sm:py-24">
+            <h2 className="max-w-[9em] font-heading text-[clamp(2.8rem,7vw,7rem)] font-bold leading-[0.9] tracking-[-0.05em]">Give HR their afternoons back.</h2>
+            <Link href="/contact" className={`inline-flex items-center gap-2 rounded-full bg-[#ff6b3d] px-8 py-4 text-base font-semibold text-[#10113a] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white`}>
+              Request a workspace <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
-        </section>
-
-        {/* Section 4: Enterprise Security (Glassmorphic) */}
-        <section className="py-20 px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7 }}
-            className="max-w-4xl mx-auto p-8 sm:p-12 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)] text-center"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-white/80 text-cyan-700 flex items-center justify-center mx-auto mb-4 border border-white/90 shadow-xs">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-bold font-heading text-slate-900">
-              Enterprise Grade Governance & Security
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto mt-2 leading-relaxed">
-              Every data transfer is protected with AES-256 encryption, role-based access control (RBAC), and immutable audit trails.
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-6 mt-6 text-xs sm:text-sm font-semibold text-slate-700">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Granular Permissions
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Statutory Tax Audit
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Biometric Sync
-              </span>
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Section 5: Bottom CTA */}
-        <section className="py-24 px-4 sm:px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7 }}
-            className="max-w-3xl mx-auto p-10 sm:p-14 rounded-3xl bg-white/45 backdrop-blur-2xl border border-white/70 shadow-[0_8px_32px_0_rgba(15,23,42,0.04)]"
-          >
-            <h2 className="text-3xl sm:text-5xl font-extrabold font-heading text-slate-900 tracking-tight">
-              Ready to elevate your HR operations?
-            </h2>
-            <p className="text-sm sm:text-base text-slate-600 mt-3 max-w-md mx-auto">
-              Join leading organizations managing attendance, time off, and dynamic payroll seamlessly with Dayflow.
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center gap-3.5 mt-8">
-              <Link
-                href="/contact"
-                className="px-7 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm shadow-xs transition-all hover:scale-105 active:scale-95"
-              >
-                Contact Sales & Pricing
-              </Link>
-              <Link
-                href="/login"
-                className="px-7 py-3.5 rounded-2xl bg-white/80 hover:bg-white text-slate-800 font-semibold text-xs sm:text-sm border border-white/80 shadow-xs backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-              >
-                Sign In
-              </Link>
-            </div>
-          </motion.div>
         </section>
       </main>
 
-      {/* Rich Multi-Column Enterprise Footer */}
-      <footer className="w-full bg-white/80 backdrop-blur-xl border-t border-slate-200/80 pt-16 pb-12 px-6 sm:px-12 relative z-10 text-slate-600 font-sans">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-slate-200/80">
-            {/* Column 1: Brand & Mission Statement (2 cols on lg) */}
-            <div className="lg:col-span-2 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2.5 mb-4">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo.png" alt="Dayflow Logo" className="h-7 w-7 object-contain" />
-                  <span className="font-heading font-extrabold text-slate-900 text-xl tracking-tight">
-                    Dayflow
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed max-w-sm">
-                  Next-generation Human Resource Management System engineered for enterprise workforce velocity, real-time presence tracking, and mathematical statutory compliance.
-                </p>
-              </div>
-
-              <div className="mt-6 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-semibold text-slate-700">All systems operational</span>
-                <span className="text-[11px] text-slate-400 font-mono ml-1">• 99.99% Uptime</span>
-              </div>
-            </div>
-
-            {/* Column 2: Platform Modules */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4 font-heading">
-                Platform
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-xs text-slate-600">
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 transition-colors">
-                    Live Attendance Pulse
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 transition-colors">
-                    Leave Governance Guard
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 transition-colors">
-                    Dynamic Salary Engine
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 transition-colors">
-                    Vector Payslip Exporter
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 transition-colors">
-                    FlowAI Natural Language
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 3: Governance & Security */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4 font-heading">
-                Governance
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-xs text-slate-600">
-                <li className="flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-cyan-600" />
-                  <span>Role-Based Access (RBAC)</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <FileCheck2 className="w-3 h-3 text-cyan-600" />
-                  <span>Statutory Tax Audit</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <Layers className="w-3 h-3 text-cyan-600" />
-                  <span>Department Capacity Guard</span>
-                </li>
-                <li className="flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-cyan-600" />
-                  <span>Biometric Sync Protocol</span>
-                </li>
-                <li>
-                  <span className="text-slate-500">ISO 27001 & SOC-2 Ready</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Access & Resources */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4 font-heading">
-                Access
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-xs text-slate-600">
-                <li>
-                  <Link href="/login" className="hover:text-cyan-700 font-semibold transition-colors">
-                    Sign In to Portal
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-700 font-semibold transition-colors">
-                    Contact & Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/platform-admin/login" className="hover:text-cyan-700 font-semibold transition-colors">
-                    Platform Super Admin
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard/admin" className="hover:text-cyan-700 transition-colors">
-                    Company Admin Hub
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dashboard/employee" className="hover:text-cyan-700 transition-colors">
-                    Employee Self-Service
-                  </Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Sub-Footer Row */}
-          <div className="pt-8 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-2">
-              <span>© 2026 Dayflow Technologies Inc.</span>
-              <span className="text-slate-300">•</span>
-              <span>All rights reserved.</span>
-            </div>
-
-            <div className="flex items-center gap-6">
-              <span className="hover:text-slate-800 cursor-pointer transition-colors">
-                Privacy Policy
-              </span>
-              <span className="hover:text-slate-800 cursor-pointer transition-colors">
-                Terms of Service
-              </span>
-              <span className="hover:text-slate-800 cursor-pointer transition-colors">
-                Security Architecture
-              </span>
-            </div>
-          </div>
+      <footer className="relative z-10 overflow-hidden bg-[#10113a] px-5 pt-14 text-white sm:px-10 lg:px-16">
+        <div className="flex flex-wrap items-center justify-between gap-6 text-sm">
+          <p className="text-white/75">© 2026 Harshavardhan K and Cholan Kinnera. All rights reserved.</p>
+          <nav aria-label="Footer" className="flex gap-6 font-medium">
+            <Link href="/login" className={`hover:underline ${focus}`}>Sign in</Link>
+            <Link href="/contact" className={`hover:underline ${focus}`}>Request a workspace</Link>
+          </nav>
         </div>
+        <p aria-hidden="true" className="mt-10 select-none translate-y-[0.12em] font-heading text-[clamp(6rem,24vw,30rem)] font-bold leading-[0.8] tracking-[-0.05em] text-[#6b6bff]">Rostra</p>
       </footer>
     </div>
   );

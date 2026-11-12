@@ -1,98 +1,79 @@
 from datetime import date, timedelta
-from typing import Dict, Any, List
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from typing import Any, Dict, List
 
-from app.models.employee import Employee, EmployeeStatus
+from sqlalchemy import case, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.attendance import Attendance, AttendanceStatus
+from app.models.employee import Employee, EmployeeStatus
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.payroll import SalaryStructure
+
+PRESENT_STATES = (AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY)
 
 
 async def get_executive_dashboard(db: AsyncSession, company_id: str) -> Dict[str, Any]:
     today = date.today()
 
-    # 1. Total employees & salary structures within company
-    emp_stmt = (
-        select(Employee)
-        .where(Employee.company_id == company_id)
-        .options(selectinload(Employee.salary_structure))
-    )
-    emp_res = await db.execute(emp_stmt)
-    employees = emp_res.scalars().all()
-    total_employees = len(employees)
+    # Headcount, payroll and on-leave count per department, aggregated in SQL
+    dept_rows = (
+        await db.execute(
+            select(
+                Employee.department,
+                func.count(Employee.id),
+                func.coalesce(func.sum(SalaryStructure.wage), 0.0),
+                func.sum(case((Employee.status == EmployeeStatus.ON_LEAVE, 1), else_=0)),
+            )
+            .outerjoin(SalaryStructure, SalaryStructure.employee_id == Employee.id)
+            .where(Employee.company_id == company_id)
+            .group_by(Employee.department)
+        )
+    ).all()
+    total_employees = sum(r[1] for r in dept_rows)
+    monthly_payroll_total = sum(float(r[2]) for r in dept_rows)
+    employees_on_leave = sum(int(r[3] or 0) for r in dept_rows)
 
-    # 2. Today's attendance within company
-    att_stmt = select(Attendance).where(
-        Attendance.company_id == company_id,
-        Attendance.work_date == today,
-    )
-    att_res = await db.execute(att_stmt)
-    today_records = att_res.scalars().all()
+    # Last 5 days of attendance in one query: (date, status) -> count
+    start = today - timedelta(days=4)
+    att_rows = (
+        await db.execute(
+            select(Attendance.work_date, Attendance.status, func.count(Attendance.id))
+            .where(Attendance.company_id == company_id, Attendance.work_date.between(start, today))
+            .group_by(Attendance.work_date, Attendance.status)
+        )
+    ).all()
+    per_day: Dict[date, Dict[AttendanceStatus, int]] = {}
+    for d, st, n in att_rows:
+        per_day.setdefault(d, {})[st] = n
 
-    present_today = sum(1 for a in today_records if a.status in [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY])
-    on_leave_today = sum(1 for e in employees if e.status == EmployeeStatus.ON_LEAVE) or sum(1 for a in today_records if a.status == AttendanceStatus.ON_LEAVE)
+    def day_counts(d: date) -> Dict[str, int]:
+        c = per_day.get(d, {})
+        present = sum(c.get(s, 0) for s in PRESENT_STATES)
+        leave = c.get(AttendanceStatus.ON_LEAVE, 0)
+        # A day with no attendance rows has no data: report zeros instead of inventing absences.
+        absent = max(0, total_employees - present - leave) if c else 0
+        return {"present": present, "absent": absent, "leave": leave}
+
+    today_counts = day_counts(today)
+    present_today = today_counts["present"]
+    on_leave_today = employees_on_leave or today_counts["leave"]
     absent_today = max(0, total_employees - present_today - on_leave_today)
 
-    # 3. Pending leave requests within company
-    leave_stmt = select(func.count(LeaveRequest.id)).where(
-        LeaveRequest.company_id == company_id,
-        LeaveRequest.status == LeaveStatus.PENDING,
-    )
-    leave_res = await db.execute(leave_stmt)
-    pending_leaves = leave_res.scalar() or 0
-
-    # 4. Total Monthly Payroll within company
-    monthly_payroll_total = 0.0
-    dept_map: Dict[str, Dict[str, Any]] = {}
-
-    for emp in employees:
-        wage = emp.salary_structure.wage if emp.salary_structure else 60000.0
-        monthly_payroll_total += wage
-
-        dept = emp.department
-        if dept not in dept_map:
-            dept_map[dept] = {"count": 0, "payroll": 0.0}
-        dept_map[dept]["count"] += 1
-        dept_map[dept]["payroll"] += wage
-
-    attendance_rate = round((present_today / total_employees * 100), 1) if total_employees > 0 else 0.0
-
-    department_distribution = [
-        {"name": name, "count": data["count"], "payroll": round(data["payroll"], 2)}
-        for name, data in dept_map.items()
-    ]
-
-    # 5. 5-Day Attendance Trends within company
-    attendance_trends: List[Dict[str, Any]] = []
-    for i in range(4, -1, -1):
-        d = today - timedelta(days=i)
-        d_str = d.strftime("%a")  # e.g. Mon, Tue, Wed
-
-        d_stmt = select(Attendance).where(
-            Attendance.company_id == company_id,
-            Attendance.work_date == d,
+    pending_leaves = (
+        await db.execute(
+            select(func.count(LeaveRequest.id)).where(
+                LeaveRequest.company_id == company_id,
+                LeaveRequest.status == LeaveStatus.PENDING,
+            )
         )
-        d_res = await db.execute(d_stmt)
-        d_recs = d_res.scalars().all()
+    ).scalar() or 0
 
-        p_count = sum(1 for r in d_recs if r.status in [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY])
-        l_count = sum(1 for r in d_recs if r.status == AttendanceStatus.ON_LEAVE)
-        a_count = max(0, total_employees - p_count - l_count)
+    attendance_rate = round(present_today / total_employees * 100, 1) if total_employees else 0.0
 
-        # Fallback realistic distribution for demo visualization if new DB has few records
-        if len(d_recs) == 0:
-            p_count = max(1, total_employees - 1) if total_employees > 0 else 0
-            l_count = 1 if i in [0, 1] and total_employees > 1 else 0
-            a_count = max(0, total_employees - p_count - l_count)
-
-        attendance_trends.append({
-            "date": d_str,
-            "present": p_count,
-            "absent": a_count,
-            "leave": l_count,
-        })
+    attendance_trends: List[Dict[str, Any]] = [
+        {"date": (today - timedelta(days=i)).strftime("%a"), **day_counts(today - timedelta(days=i))}
+        for i in range(4, -1, -1)
+    ]
 
     return {
         "metrics": {
@@ -104,7 +85,8 @@ async def get_executive_dashboard(db: AsyncSession, company_id: str) -> Dict[str
             "attendance_rate": attendance_rate,
             "monthly_payroll_total": round(monthly_payroll_total, 2),
         },
-        "department_distribution": department_distribution,
+        "department_distribution": [
+            {"name": r[0], "count": r[1], "payroll": round(float(r[2]), 2)} for r in dept_rows
+        ],
         "attendance_trends": attendance_trends,
     }
-

@@ -8,7 +8,6 @@ Create Date: 2026-08-22 15:50:00.000000
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.engine.reflection import Inspector
 
 revision: str = '0004_super_admin_inquiries'
 down_revision: Union[str, None] = '0003_repair_tenant_schema'

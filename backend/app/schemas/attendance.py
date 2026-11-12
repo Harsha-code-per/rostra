@@ -1,7 +1,6 @@
 from datetime import date, datetime
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict
-from app.models.attendance import AttendanceStatus
+from typing import List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CheckInRequest(BaseModel):
@@ -10,6 +9,14 @@ class CheckInRequest(BaseModel):
 
 class CheckOutRequest(BaseModel):
     notes: Optional[str] = None
+
+
+class AttendanceOverrideRequest(BaseModel):
+    employee_id: str  # employee code (EMP-001) or UUID
+    work_date: date
+    status: Literal["PRESENT", "ABSENT", "HALF_DAY", "ON_LEAVE"]
+    total_hours: Optional[float] = Field(default=None, ge=0, le=24)
+    notes: Optional[str] = Field(default=None, max_length=500)
 
 
 class AttendanceOut(BaseModel):

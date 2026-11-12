@@ -1,8 +1,10 @@
 [project]
-name = "dayflow-backend"
+name = "rostra-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Rostra HR platform API"
 readme = "README.md"
+authors = [{ name = "Harshavardhan K" }, { name = "Cholan Kinnera" }]
+license = { text = "Proprietary. All rights reserved." }
 requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.22.1",
@@ -12,18 +14,32 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
     "httpx>=0.28.1",
-    "passlib[bcrypt]>=1.7.4",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.13.0",
-    "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
-    "python-multipart>=0.0.32",
     "resend>=2.39.0",
+    "slowapi>=0.1.9",
     "sqlalchemy>=2.0.0",
     "uvicorn[standard]>=0.52.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.8.0",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E712", "E741"]  # E712: SQLAlchemy needs == True/False
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E402"]

@@ -1,11 +1,12 @@
-from typing import Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.permissions import get_current_user, require_roles
+from app.core.permissions import get_current_user, require_roles, role_value
 from app.models.profile import Profile
 from app.models.employee import Employee
 from app.schemas.payroll import (
@@ -25,6 +26,8 @@ router = APIRouter(tags=["Payroll & Dynamic Salary Engine"])
 
 @router.get("/payroll/me", response_model=SalaryBreakdownOut)
 async def get_my_payroll(
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None, ge=2000, le=2100),
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -34,7 +37,7 @@ async def get_my_payroll(
             detail="Employee profile not found",
         )
 
-    summary = await get_employee_payroll_summary(db, current_user.employee, current_user.company_id)
+    summary = await get_employee_payroll_summary(db, current_user.employee, current_user.company_id, month, year)
     return summary
 
 
@@ -42,6 +45,8 @@ async def get_my_payroll(
 @router.get("/payroll/{id_or_emp_id}", response_model=SalaryBreakdownOut)
 async def get_employee_payroll(
     id_or_emp_id: str,
+    month: Optional[int] = Query(None, ge=1, le=12),
+    year: Optional[int] = Query(None, ge=2000, le=2100),
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -62,7 +67,7 @@ async def get_employee_payroll(
             detail=f"Employee {id_or_emp_id} not found in this company",
         )
 
-    user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
+    user_role = role_value(current_user.role)
     is_admin_or_hr = user_role in ["ADMIN", "HR"]
     is_own_payroll = current_user.employee and (
         current_user.employee.id == emp.id or current_user.employee.employee_id == emp.employee_id
@@ -74,7 +79,7 @@ async def get_employee_payroll(
             detail="Access denied: You do not have permission to view this employee's payroll details",
         )
 
-    return await get_employee_payroll_summary(db, emp, current_user.company_id)
+    return await get_employee_payroll_summary(db, emp, current_user.company_id, month, year)
 
 
 @router.put("/admin/payroll/{id_or_emp_id}/salary", response_model=SalaryRecalculationResponse)

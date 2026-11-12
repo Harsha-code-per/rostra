@@ -66,7 +66,7 @@ export function AvatarBadge({
       case "ON_LEAVE":
         return "bg-purple-400";
       case "HALF_DAY":
-        return "bg-amber-400";
+        return "bg-[#ff6b3d]";
       case "TERMINATED":
       case "ABSENT":
         return "bg-rose-400";

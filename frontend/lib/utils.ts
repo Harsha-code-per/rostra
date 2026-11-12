@@ -35,3 +35,7 @@ export function formatTime(isoStr: string | null | undefined): string {
     return "--:--";
   }
 }
+
+export function periodLabel(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}

@@ -1,15 +1,21 @@
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+import asyncio
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.permissions import get_current_user, require_roles
+from app.core.limiter import limiter
+from app.core.permissions import get_current_user, role_value
 from app.models.profile import Profile, UserRole
 from app.models.employee import Employee
+from app.models.reset_token import PasswordResetToken
 from app.models.payroll import SalaryStructure
 from app.services.payroll_service import calculate_salary_structure
 from app.services.email_service import email_service
@@ -17,6 +23,7 @@ from app.schemas.auth import (
     LoginRequest,
     PasswordChangeRequest,
     ForgotPasswordRequest,
+    ResetPasswordRequest,
     RegisterRequest,
     TokenResponse,
     UserOut,
@@ -28,7 +35,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, req: LoginRequest, db: AsyncSession = Depends(get_db)):
     stmt = (
         select(Profile)
         .where(Profile.email == req.email.lower())
@@ -37,7 +45,7 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     profile = result.scalar_one_or_none()
 
-    if not profile or not verify_password(req.password, profile.password_hash):
+    if not profile or not await asyncio.to_thread(verify_password, req.password, profile.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -51,7 +59,13 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    role_str = profile.role.value if hasattr(profile.role, "value") else str(profile.role)
+    if profile.company and (not profile.company.is_active or profile.company.status != "ACTIVE"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This workspace is suspended. Contact your administrator or Rostra support.",
+        )
+
+    role_str = role_value(profile.role)
     access_token = create_access_token(
         subject=profile.id,
         role=role_str,
@@ -97,19 +111,13 @@ async def change_password(
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if not verify_password(req.old_password, current_user.password_hash):
+    if not await asyncio.to_thread(verify_password, req.old_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password verification failed",
         )
 
-    if len(req.new_password.strip()) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 6 characters long",
-        )
-
-    current_user.password_hash = get_password_hash(req.new_password)
+    current_user.password_hash = await asyncio.to_thread(get_password_hash, req.new_password)
     current_user.must_reset_password = False
     current_user.password_changed_at = datetime.now(timezone.utc)
 
@@ -118,7 +126,9 @@ async def change_password(
 
 
 @router.post("/forgot-password")
+@limiter.limit("5/minute")
 async def forgot_password(
+    request: Request,
     req: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -135,7 +145,16 @@ async def forgot_password(
         return {"message": "If this email exists, a password reset link has been dispatched."}
 
     recipient_name = f"{profile.employee.first_name} {profile.employee.last_name}" if profile.employee else profile.email.split("@")[0]
-    reset_link = f"{settings.APP_BASE_URL}/force-password-reset"
+    raw_token = secrets.token_urlsafe(32)
+    db.add(
+        PasswordResetToken(
+            user_id=profile.id,
+            token_hash=hashlib.sha256(raw_token.encode()).hexdigest(),
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.RESET_TOKEN_EXPIRE_MINUTES),
+        )
+    )
+    await db.commit()
+    reset_link = f"{settings.APP_BASE_URL}/reset-password?token={raw_token}"
     email_service.send_password_reset_email(
         to_email=profile.email,
         recipient_name=recipient_name,
@@ -144,35 +163,58 @@ async def forgot_password(
     return {"message": "If this email exists, a password reset link has been dispatched."}
 
 
+@router.post("/reset-password")
+@limiter.limit("10/minute")
+async def reset_password(request: Request, req: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    token_hash = hashlib.sha256(req.token.encode()).hexdigest()
+    record = (
+        await db.execute(select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash))
+    ).scalar_one_or_none()
+    now = datetime.now(timezone.utc)
+    expires_at = record.expires_at.replace(tzinfo=timezone.utc) if record and record.expires_at.tzinfo is None else (record.expires_at if record else None)
+    if not record or record.used_at is not None or expires_at < now:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This reset link is invalid or has expired")
+
+    profile = (await db.execute(select(Profile).where(Profile.id == record.user_id))).scalar_one()
+    profile.password_hash = await asyncio.to_thread(get_password_hash, req.new_password)
+    profile.must_reset_password = False
+    profile.password_changed_at = now
+    record.used_at = now
+    await db.commit()
+    return {"message": "Password updated. Please sign in with your new password."}
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     req: RegisterRequest,
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
+    user_role = role_value(current_user.role)
 
-    # 1. Negative RBAC checks on role assignment
-    if user_role == "EMPLOYEE":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Employees do not have permission to register new users",
-        )
-
+    # 1. Role whitelist: who may create which role. SUPER_ADMIN is never creatable via the API.
+    allowed_targets = {"ADMIN": {"HR", "EMPLOYEE"}, "HR": {"EMPLOYEE"}}.get(user_role)
     target_role = req.role or UserRole.EMPLOYEE
-    target_role_str = target_role.value if hasattr(target_role, "value") else str(target_role)
-
-    if user_role == "HR" and target_role_str != "EMPLOYEE":
+    target_role_str = role_value(target_role)
+    if allowed_targets is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to register new users")
+    if target_role_str not in allowed_targets:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="HR personnel can only onboard standard employees",
+            detail=f"{user_role} accounts can only create: {', '.join(sorted(allowed_targets))}",
         )
 
-    if user_role == "ADMIN" and target_role_str == "ADMIN":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot assign additional ADMIN role within the company",
-        )
+    # Plan limit
+    company = current_user.company
+    if company and company.max_employees is not None:
+        headcount = (
+            await db.execute(select(func.count()).select_from(Employee).where(Employee.company_id == company.id))
+        ).scalar_one()
+        if headcount >= company.max_employees:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=f"Your plan allows up to {company.max_employees} employees. Contact Rostra to upgrade.",
+            )
 
     # 2. Check duplicate email or employee_id within tenant
     stmt = select(Profile).where(Profile.email == req.email.lower())
@@ -195,7 +237,7 @@ async def register(
         )
 
     # 3. Transactional multi-record creation
-    hashed_pw = get_password_hash(req.password)
+    hashed_pw = await asyncio.to_thread(get_password_hash, req.password)
 
     profile = Profile(
         company_id=current_user.company_id,
@@ -235,13 +277,13 @@ async def register(
     await db.commit()
 
     # 4. Dispatch onboarding invitation email
-    company_name = current_user.company.name if current_user.company else "Dayflow Technologies"
+    company_name = current_user.company.name if current_user.company else "your company"
     activation_link = f"{settings.APP_BASE_URL}/force-password-reset"
     email_service.send_invitation_email(
         to_email=profile.email,
         recipient_name=f"{employee.first_name} {employee.last_name}",
         company_name=company_name,
-        role=target_role.value if hasattr(target_role, "value") else str(target_role),
+        role=target_role_str,
         activation_link=activation_link,
     )
 
@@ -255,7 +297,7 @@ async def register(
 
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: Profile = Depends(get_current_user)):
-    role_str = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    role_str = role_value(current_user.role)
     emp_summary = None
     if current_user.employee:
         emp = current_user.employee

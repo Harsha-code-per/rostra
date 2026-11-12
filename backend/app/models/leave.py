@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 import enum
-from sqlalchemy import Column, String, Date, DateTime, Integer, Boolean, ForeignKey, Enum as SAEnum, Text, UniqueConstraint
+from sqlalchemy import Column, String, Date, DateTime, Integer, Boolean, ForeignKey, Enum as SAEnum, Text, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -40,11 +40,15 @@ class LeaveType(Base):
 
 class LeaveRequest(Base):
     __tablename__ = "leave_requests"
+    __table_args__ = (
+        Index("ix_leave_requests_company_status", "company_id", "status"),
+        Index("ix_leave_requests_dates", "start_date", "end_date"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     company_id = Column(String(36), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
     employee_id = Column(String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True)
-    leave_type_id = Column(String(36), ForeignKey("leave_types.id", ondelete="RESTRICT"), nullable=False)
+    leave_type_id = Column(String(36), ForeignKey("leave_types.id", ondelete="RESTRICT"), nullable=False, index=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_days = Column(Integer, default=1, nullable=False)

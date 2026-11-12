@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Rostra">
+  <rect x="4" y="30" width="15" height="28" rx="5" fill="#3b3bf2"/>
+  <rect x="24.5" y="18" width="15" height="40" rx="5" fill="#3b3bf2"/>
+  <rect x="45" y="38" width="15" height="20" rx="5" fill="#3b3bf2"/>
+  <circle cx="32" cy="7.5" r="6.5" fill="#ff6b3d"/>
+</svg>

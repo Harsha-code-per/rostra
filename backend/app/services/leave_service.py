@@ -12,6 +12,8 @@ from app.models.profile import Profile, UserRole
 from app.models.notification import Notification
 
 
+MAX_LEAVE_DAYS = 90
+
 DEFAULT_QUOTAS = {
     "PAID": 18,
     "SICK": 10,
@@ -58,11 +60,12 @@ async def apply_for_leave(
             detail="End date cannot be earlier than start date",
         )
 
-    computed_days = total_days or ((end_date - start_date).days + 1)
-    if computed_days <= 0:
+    # Duration is always derived server-side; any client-supplied total_days is ignored.
+    computed_days = (end_date - start_date).days + 1
+    if computed_days > MAX_LEAVE_DAYS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Leave duration must be at least 1 day",
+            detail=f"A single leave request cannot exceed {MAX_LEAVE_DAYS} days",
         )
 
     leave_type = await get_or_create_leave_type(db, company_id, leave_type_enum)
@@ -131,6 +134,12 @@ async def review_leave_request(
             detail="Leave request not found in this company",
         )
 
+    if req.status != LeaveStatus.PENDING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This leave request was already {req.status.value.lower()}",
+        )
+
     req.status = new_status
     req.hr_comments = hr_comments or ""
     req.reviewed_by = reviewer.id
@@ -145,33 +154,38 @@ async def review_leave_request(
         if req.start_date <= today <= req.end_date:
             emp.status = EmployeeStatus.ON_LEAVE
 
-        # Populate / update attendance records for each day in leave range
-        current = req.start_date
-        while current <= req.end_date:
-            # Skip weekends (Saturday=5, Sunday=6)
-            if current.weekday() < 5:
-                att_stmt = select(Attendance).where(
+        # Populate / update attendance records for each weekday in the leave range (one query, not one per day)
+        existing = (
+            await db.execute(
+                select(Attendance).where(
                     Attendance.company_id == company_id,
                     Attendance.employee_id == emp.id,
-                    Attendance.work_date == current,
+                    Attendance.work_date.between(req.start_date, req.end_date),
                 )
-                att_res = await db.execute(att_stmt)
-                att = att_res.scalar_one_or_none()
+            )
+        ).scalars().all()
+        by_date = {a.work_date: a for a in existing}
+        note = f"Approved {req.leave_type.name.value} Leave"
+        current = req.start_date
+        while current <= req.end_date:
+            if current.weekday() < 5:  # skip Saturday/Sunday
+                att = by_date.get(current)
                 if att:
                     att.status = AttendanceStatus.ON_LEAVE
-                    att.notes = f"Approved {req.leave_type.name.value} Leave"
+                    att.notes = note
                 else:
-                    new_att = Attendance(
-                        company_id=company_id,
-                        employee_id=emp.id,
-                        work_date=current,
-                        check_in=None,
-                        check_out=None,
-                        total_hours=0.0,
-                        status=AttendanceStatus.ON_LEAVE,
-                        notes=f"Approved {req.leave_type.name.value} Leave",
+                    db.add(
+                        Attendance(
+                            company_id=company_id,
+                            employee_id=emp.id,
+                            work_date=current,
+                            check_in=None,
+                            check_out=None,
+                            total_hours=0.0,
+                            status=AttendanceStatus.ON_LEAVE,
+                            notes=note,
+                        )
                     )
-                    db.add(new_att)
             current += timedelta(days=1)
 
     # Notify employee
@@ -212,9 +226,14 @@ async def get_leave_balances(
         if lt_name in used_map:
             used_map[lt_name] += req.total_days
 
+    alloc_rows = (
+        await db.execute(select(LeaveType.name, LeaveType.default_allocation).where(LeaveType.company_id == company_id))
+    ).all()
+    quotas = {**DEFAULT_QUOTAS, **{n.value: a for n, a in alloc_rows}}
+
     balances = {}
-    for name, allocated in DEFAULT_QUOTAS.items():
-        used = used_map[name]
+    for name, allocated in quotas.items():
+        used = used_map.get(name, 0)
         remaining = max(0, allocated - used) if allocated > 0 else 0
         balances[name] = {
             "allocated": allocated,
@@ -230,6 +249,9 @@ async def list_leave_requests(
     company_id: str,
     employee_id: Optional[str] = None,
     status_filter: Optional[LeaveStatus] = None,
+    leave_id: Optional[str] = None,
+    limit: int = 500,
+    offset: int = 0,
 ) -> List[Dict[str, Any]]:
     stmt = (
         select(LeaveRequest)
@@ -246,8 +268,10 @@ async def list_leave_requests(
         stmt = stmt.where(LeaveRequest.employee_id == employee_id)
     if status_filter:
         stmt = stmt.where(LeaveRequest.status == status_filter)
+    if leave_id:
+        stmt = stmt.where(LeaveRequest.id == leave_id)
 
-    result = await db.execute(stmt)
+    result = await db.execute(stmt.limit(limit).offset(offset))
     requests = result.scalars().all()
 
     items = []

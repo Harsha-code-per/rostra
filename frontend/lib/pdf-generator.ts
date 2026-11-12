@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { Employee } from "./mock-data";
+import { Employee } from "./types";
 import { SalaryComponents, PayableSalaryResult } from "./salary-calculator";
 import { formatCurrency, formatDate } from "./utils";
 
@@ -7,7 +7,7 @@ export function generatePayslipPDF(
   employee: Employee,
   structure: SalaryComponents,
   payableSummary: PayableSalaryResult,
-  monthYear: string = "August 2026"
+  monthYear: string
 ): void {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -31,12 +31,12 @@ export function generatePayslipPDF(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("DAYFLOW HRMS", 14, 18);
+  doc.text("ROSTRA", 14, 18);
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(primaryCyan[0], primaryCyan[1], primaryCyan[2]);
-  doc.text("ENTERPRISE HUMAN RESOURCE MANAGEMENT", 14, 25);
+  doc.text("PEOPLE & PAYROLL", 14, 25);
 
   doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
@@ -195,7 +195,7 @@ export function generatePayslipPDF(
   y = 245;
   doc.setTextColor(textMuted[0], textMuted[1], textMuted[2]);
   doc.setFontSize(8);
-  doc.text("This is a computer-generated salary statement from Dayflow HRMS and requires no physical signature.", 105, y, { align: "center" });
+  doc.text("This is a computer-generated salary statement from Rostra and requires no physical signature.", 105, y, { align: "center" });
 
   doc.setDrawColor(203, 213, 225);
   doc.line(24, y + 20, 74, y + 20);
@@ -205,5 +205,5 @@ export function generatePayslipPDF(
   doc.text("Authorised HR Signatory", 161, y + 25, { align: "center" });
 
   // Save PDF
-  doc.save(`Dayflow_Payslip_${employee.employeeId}_${monthYear.replace(" ", "_")}.pdf`);
+  doc.save(`Rostra_Payslip_${employee.employeeId}_${monthYear.replace(" ", "_")}.pdf`);
 }

@@ -6,13 +6,13 @@ from httpx import AsyncClient
 async def test_super_admin_login(client: AsyncClient):
     res = await client.post(
         "/api/v1/auth/login",
-        json={"email": "owner@dayflow.io", "password": "DayflowPlatform#2026"},
+        json={"email": "owner@demo.example.com", "password": "RostraPlatform#2026"},
     )
     assert res.status_code == 200, res.text
     data = res.json()
     assert "access_token" in data
     assert data["user"]["role"] == "SUPER_ADMIN"
-    assert data["user"]["email"] == "owner@dayflow.io"
+    assert data["user"]["email"] == "owner@demo.example.com"
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_super_admin_negative_rbac(client: AsyncClient):
     # 1. Tenant Admin tries to access Super Admin endpoint
     admin_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@dayflow.io", "password": "password123"},
+        json={"email": "admin@demo.example.com", "password": "password123"},
     )
     admin_token = admin_login.json()["access_token"]
 
@@ -33,7 +33,7 @@ async def test_super_admin_negative_rbac(client: AsyncClient):
     # 2. Tenant HR tries to provision company
     hr_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "sarah.hr@dayflow.io", "password": "password123"},
+        json={"email": "sarah.hr@demo.example.com", "password": "password123"},
     )
     hr_token = hr_login.json()["access_token"]
 
@@ -52,7 +52,7 @@ async def test_super_admin_negative_rbac(client: AsyncClient):
     # 3. Employee tries to view inquiries
     emp_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "alex.rivera@dayflow.io", "password": "password123"},
+        json={"email": "alex.rivera@demo.example.com", "password": "password123"},
     )
     emp_token = emp_login.json()["access_token"]
 
@@ -67,7 +67,7 @@ async def test_super_admin_negative_rbac(client: AsyncClient):
 async def test_super_admin_provision_company_and_persistence(client: AsyncClient):
     super_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "owner@dayflow.io", "password": "DayflowPlatform#2026"},
+        json={"email": "owner@demo.example.com", "password": "RostraPlatform#2026"},
     )
     super_token = super_login.json()["access_token"]
 
@@ -89,7 +89,6 @@ async def test_super_admin_provision_company_and_persistence(client: AsyncClient
     assert data["company"]["name"] == "Starlight Dynamics"
     assert data["company"]["adminEmail"] == "arthur@starlight.io"
     assert "temporaryPassword" in data
-    temp_pass = data["temporaryPassword"]
 
     # List companies and verify new company is present
     list_res = await client.get(
@@ -107,7 +106,7 @@ async def test_super_admin_provision_company_and_persistence(client: AsyncClient
 async def test_provisioned_admin_login_and_forced_password_reset(client: AsyncClient):
     super_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "owner@dayflow.io", "password": "DayflowPlatform#2026"},
+        json={"email": "owner@demo.example.com", "password": "RostraPlatform#2026"},
     )
     super_token = super_login.json()["access_token"]
 
@@ -177,7 +176,7 @@ async def test_public_inquiry_and_super_admin_review(client: AsyncClient):
     # 2. Super Admin lists inquiries
     super_login = await client.post(
         "/api/v1/auth/login",
-        json={"email": "owner@dayflow.io", "password": "DayflowPlatform#2026"},
+        json={"email": "owner@demo.example.com", "password": "RostraPlatform#2026"},
     )
     super_token = super_login.json()["access_token"]
 

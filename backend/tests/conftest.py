@@ -1,5 +1,6 @@
-import asyncio
-import pytest
+import os
+
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession

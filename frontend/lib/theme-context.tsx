@@ -21,7 +21,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
-    localStorage.setItem("dayflow_theme", "light");
+    localStorage.setItem("rostra_theme", "light");
   }, []);
 
   return (

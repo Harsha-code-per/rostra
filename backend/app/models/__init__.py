@@ -6,6 +6,7 @@ from app.models.leave import LeaveType, LeaveRequest, LeaveTypeEnum, LeaveStatus
 from app.models.payroll import SalaryStructure
 from app.models.notification import Notification
 from app.models.inquiry import Inquiry
+from app.models.reset_token import PasswordResetToken
 
 __all__ = [
     "Company",
@@ -22,5 +23,6 @@ __all__ = [
     "SalaryStructure",
     "Notification",
     "Inquiry",
+    "PasswordResetToken",
 ]
 

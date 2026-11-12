@@ -5,10 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.core.permissions import get_current_user, require_roles
-from app.models.profile import Profile, UserRole
+from app.core.permissions import get_current_user
+from app.models.profile import Profile
 from app.models.employee import Employee, EmployeeStatus
-from app.models.payroll import SalaryStructure
 from app.services.payroll_service import update_employee_salary
 from app.schemas.employee import EmployeeOut, EmployeeUpdate
 
@@ -71,8 +70,10 @@ async def get_my_employee_profile(
 @router.get("", response_model=List[EmployeeOut])
 async def list_employees(
     department: Optional[str] = Query(None, description="Filter by department"),
-    status: Optional[str] = Query(None, description="Filter by status (ACTIVE, ON_LEAVE, TERMINATED)"),
-    search: Optional[str] = Query(None, description="Search by name, email, or employee ID"),
+    status: Optional[EmployeeStatus] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, max_length=100, description="Search by name, email, or employee ID"),
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     current_user: Profile = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -86,7 +87,7 @@ async def list_employees(
     if department and department.lower() != "all":
         stmt = stmt.where(Employee.department == department)
 
-    if status and status.lower() != "all":
+    if status:
         stmt = stmt.where(Employee.status == status)
 
     if search:
@@ -100,7 +101,7 @@ async def list_employees(
             )
         )
 
-    result = await db.execute(stmt)
+    result = await db.execute(stmt.limit(limit).offset(offset))
     employees = result.scalars().all()
     user_role = str(current_user.role.value if hasattr(current_user.role, "value") else current_user.role)
     is_admin_or_hr = user_role in ["ADMIN", "HR"]
@@ -209,7 +210,7 @@ async def update_employee(
         if updates.status is not None:
             emp.status = updates.status
         if updates.wage is not None:
-            await update_employee_salary(db, emp.id, updates.wage)
+            await update_employee_salary(db, emp.id, current_user.company_id, updates.wage)
 
     await db.commit()
     await db.refresh(emp)

@@ -1,19 +1,18 @@
 """
-Dayflow HRMS — End-to-End Real-Data Multi-Tenant Lifecycle Verification Suite
+Rostra — End-to-End Real-Data Multi-Tenant Lifecycle Verification Suite
 Executes the full 7-stage SaaS workflow against real FastAPI endpoints and database.
 """
 
 import asyncio
 import httpx
 import uuid
-import sys
 
 BASE_URL = "http://localhost:8000/api/v1"
 
 async def run_e2e_verification():
     async with httpx.AsyncClient(base_url=BASE_URL, timeout=30.0) as client:
         print("=" * 80)
-        print("⚡ DAYFLOW HRMS — FULL-STACK REAL-DATA E2E WORKFLOW VERIFICATION")
+        print("⚡ ROSTRA HRMS — FULL-STACK REAL-DATA E2E WORKFLOW VERIFICATION")
         print("=" * 80)
 
         run_id = uuid.uuid4().hex[:6]
@@ -46,13 +45,13 @@ async def run_e2e_verification():
         # -------------------------------------------------------------------------
         print("\n[STAGE 2] Platform Super Admin Login & Multi-Tenant Provisioning...")
         login_res = await client.post("/auth/login", json={
-            "email": "owner@dayflow.io",
-            "password": "DayflowPlatform#2026"
+            "email": "owner@demo.example.com",
+            "password": "RostraPlatform#2026"
         })
         assert login_res.status_code == 200, f"Super Admin login failed: {login_res.text}"
         super_token = login_res.json()["access_token"]
         super_headers = {"Authorization": f"Bearer {super_token}"}
-        print(f"  ✓ Super Admin Authenticated: owner@dayflow.io (Role: {login_res.json()['user']['role']})")
+        print(f"  ✓ Super Admin Authenticated: owner@demo.example.com (Role: {login_res.json()['user']['role']})")
 
         # Verify inquiries list
         inquiries_res = await client.get("/super-admin/inquiries", headers=super_headers)
@@ -62,7 +61,7 @@ async def run_e2e_verification():
             (i.get("workEmail") == founder_email or i.get("work_email") == founder_email)
             for i in inquiries_list
         )
-        print(f"  ✓ Verified Inquiry in Super Admin Queue")
+        print("  ✓ Verified Inquiry in Super Admin Queue")
 
         # Provision Tenant Workspace
         provision_res = await client.post("/super-admin/companies", headers=super_headers, json={
@@ -145,7 +144,7 @@ async def run_e2e_verification():
         assert deductions["pf"] == 9000.0, f"PF mismatch: {deductions['pf']}"
         assert deductions["professional_tax"] == 200.0, f"PT mismatch: {deductions['professional_tax']}"
         assert payroll_data["net_salary"] == 140800.0, f"Net salary mismatch: {payroll_data['net_salary']}"
-        print(f"  ✓ Statutory CTC Formula Verified: Base=₹1,50,000 | Basic=₹75,000 | HRA=₹37,500 | PF=₹9,000 | PT=₹200 | Net=₹1,40,800")
+        print("  ✓ Statutory CTC Formula Verified: Base=₹1,50,000 | Basic=₹75,000 | HRA=₹37,500 | PF=₹9,000 | PT=₹200 | Net=₹1,40,800")
 
         # -------------------------------------------------------------------------
         # STAGE 5: Biometric Attendance Tracking

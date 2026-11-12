@@ -30,7 +30,7 @@ def main():
     res_invitation = service.send_invitation_email(
         to_email=recipient,
         recipient_name="Test Verification User",
-        company_name="Dayflow Technologies Inc.",
+        company_name="Rostra Demo Co.",
         role="HR",
         activation_link="http://localhost:3000/force-password-reset",
     )
