@@ -1,8 +1,10 @@
-"""Transactional email over SMTP (Brevo's relay by default; any SMTP server works)."""
+"""Transactional email: Brevo's HTTPS API when BREVO_API_KEY is set, otherwise plain SMTP."""
+import json
 import logging
 import re
 import smtplib
 import ssl
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from email.message import EmailMessage
 from html import escape
@@ -51,7 +53,9 @@ class EmailService:
         password: Optional[str] = None,
         sender: Optional[str] = None,
         sender_name: Optional[str] = None,
+        api_key: Optional[str] = None,
     ):
+        self.api_key = settings.BREVO_API_KEY if api_key is None else api_key
         self.host = settings.SMTP_HOST if host is None else host
         self.port = settings.SMTP_PORT if port is None else port
         self.user = settings.SMTP_USER if user is None else user
@@ -61,11 +65,32 @@ class EmailService:
 
     @property
     def configured(self) -> bool:
-        return bool(self.user and self.password and self.sender)
+        return bool(self.sender and (self.api_key or (self.user and self.password)))
 
     def _redact(self, msg: Any) -> str:
         s = str(msg)
-        return s.replace(self.password, "***REDACTED***") if self.password else s
+        for secret in (self.password, self.api_key):
+            if secret:
+                s = s.replace(secret, "***REDACTED***")
+        return s
+
+    def _post_api(self, to: str, subject: str, html: str, reply_to: Optional[str]) -> None:
+        payload: Dict[str, Any] = {
+            "sender": {"name": _one_line(self.sender_name), "email": self.sender},
+            "to": [{"email": to}],
+            "subject": subject,
+            "htmlContent": html,
+        }
+        if reply_to:
+            payload["replyTo"] = {"email": reply_to}
+        req = urllib.request.Request(
+            "https://api.brevo.com/v3/smtp/email",
+            data=json.dumps(payload).encode(),
+            headers={"api-key": self.api_key, "content-type": "application/json", "accept": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
 
     def _send(self, to: str, subject: str, html: str, reply_to: Optional[str] = None) -> Dict[str, Any]:
         subject = _one_line(subject)
@@ -73,6 +98,10 @@ class EmailService:
             logger.info("SMTP not configured; simulated email to %s (%s)", to, subject)
             return {"status": "simulated", "to": to, "subject": subject}
         try:
+            if self.api_key:
+                self._post_api(to, subject, html, reply_to)
+                logger.info("Email sent to %s via Brevo API (%s)", to, subject)
+                return {"status": "sent", "to": to, "subject": subject}
             msg = EmailMessage()
             msg["From"] = f"{_one_line(self.sender_name)} <{self.sender}>"
             msg["To"] = to

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # Outgoing email over SMTP (Brevo relay by default). Without credentials, emails are logged, not sent.
+    # Brevo HTTPS API key (xkeysib-...). Preferred: free Render blocks outbound SMTP ports, HTTPS always works.
+    BREVO_API_KEY: str = ""
     SMTP_HOST: str = "smtp-relay.brevo.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = ""

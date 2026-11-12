@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.services.email_service import email_service  # noqa: E402
 
 if not email_service.configured:
-    sys.exit("Set SMTP_USER, SMTP_PASSWORD and EMAIL_FROM first.")
+    sys.exit("Set BREVO_API_KEY (or SMTP_USER and SMTP_PASSWORD) and EMAIL_FROM first.")
 to = sys.argv[1] if len(sys.argv) > 1 else sys.exit("Usage: verify_email_live.py <recipient>")
 result = email_service.send_password_reset_email(to, "Test", "https://example.com/reset-password?token=test")
 print(result)
